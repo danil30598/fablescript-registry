@@ -1,0 +1,4 @@
+func hello(string name)
+{
+    return "Привет, " + name
+}
