@@ -1,20 +1,28 @@
-# Реестр пакетов FableScript
+# FableScript
 
-`index.json` — публичный реестр первой версии. GitHub раздаёт его и файлы `.fable` как статические файлы через `raw.githubusercontent.com`.
+Экспериментальный язык программирования с простым синтаксисом, классами, коллекциями, локальными и глобальными модулями, менеджером пакетов и расширением для VS Code.
 
-Каждая версия пакета содержит URL исходного файла и обязательную контрольную сумму SHA-256. Установщик проверяет сумму до записи файла в проект.
+## Структура
 
-После публикации адрес реестра указывается в проекте:
+- [`language/`](./language/) — интерпретатор, CLI, расширение VS Code, примеры и тесты языка.
+- [`frameworks/`](./frameworks/) — публичный реестр, пакеты и список экосистемы FableScript.
 
-```json
-{
-  "name": "my_project",
-  "registry": "https://raw.githubusercontent.com/danil30598/fablescript-registry/main/index.json"
-}
-```
+## Расширение VS Code
 
-Установка выполняется командой:
+Готовый файл: [`language/build/fablescript-0.0.18.vsix`](./language/build/fablescript-0.0.18.vsix).
+
+Расширение добавляет подсветку, диагностику, запуск по `F6` и автодополнение языка, модулей и экспортируемых функций.
+
+## Пакеты
 
 ```powershell
-node .\runtime\cli.js install greetings
+fable install greetings
 ```
+
+```fable
+import greetings
+
+print(greetings.hello("Alex"))
+```
+
+Полный список находится в [`frameworks/ECOSYSTEM.md`](./frameworks/ECOSYSTEM.md).

@@ -1,0 +1,12 @@
+var age = 18
+var hasTicket = true
+
+if age >= 18 and hasTicket {
+    print("Доступ разрешён")
+} else {
+    print("Доступ запрещён")
+}
+
+if age == 18 {
+    print("Ровно восемнадцать")
+}

@@ -1,0 +1,11 @@
+var PI = 3.14
+
+func add(int a int b)
+{
+    return a + b
+}
+
+func double(int value)
+{
+    return value * 2
+}

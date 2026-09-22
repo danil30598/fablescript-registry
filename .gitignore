@@ -1,0 +1,5 @@
+language/.vsix-staging/
+language/fable_modules/
+language/fable.lock.json
+language/build/*
+!language/build/fablescript-0.0.18.vsix

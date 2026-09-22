@@ -1,0 +1,22 @@
+func add(int a int b)
+{
+    return a + b
+}
+
+func greet(string name)
+{
+    print("Привет, " + name)
+}
+
+func factorial(int number) -> int
+{
+    if number <= 1 {
+        return 1
+    }
+
+    return number * factorial(number - 1)
+}
+
+greet("FableScript")
+print(add(2 3))
+print(factorial(5))

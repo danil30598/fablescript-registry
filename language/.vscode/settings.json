@@ -1,0 +1,13 @@
+{
+  "files.associations": {
+    "*.fable": "fablescript"
+  },
+  "editor.codeLens": true,
+  "editor.tabCompletion": "on",
+  "editor.snippetSuggestions": "top",
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": false
+  }
+}

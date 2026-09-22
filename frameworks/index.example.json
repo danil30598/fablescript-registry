@@ -5,7 +5,7 @@
       "latest": "1.0.0",
       "versions": {
         "1.0.0": {
-          "url": "./greetings.fable",
+          "url": "./greetings/greetings.fable",
           "sha256": "6a5293239e8b39a27ffd5df82626af3e377eced76de433a6a11a62766e0cd859"
         }
       }

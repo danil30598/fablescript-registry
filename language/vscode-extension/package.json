@@ -1,0 +1,105 @@
+{
+  "name": "fablescript",
+  "displayName": "FableScript",
+  "description": "Поддержка экспериментального языка FableScript",
+  "version": "0.0.18",
+  "publisher": "fablescript",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "activationEvents": [
+    "onLanguage:fablescript",
+    "onCommand:fablescript.runFile",
+    "onCommand:fablescript.installPackage"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "fablescript",
+        "aliases": ["FableScript", "fable"],
+        "extensions": [".fable"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "fablescript",
+        "scopeName": "source.fablescript",
+        "path": "./syntaxes/fablescript.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "fablescript.runFile",
+        "title": "FableScript: Запустить текущий файл",
+        "icon": "$(play)"
+      },
+      {
+        "command": "fablescript.installPackage",
+        "title": "FableScript: Установить пакет"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "fablescript.runFile",
+        "key": "f6",
+        "when": "editorLangId == fablescript"
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "fablescript",
+        "owner": "fablescript",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[fablescript]": {
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": false,
+          "strings": false
+        },
+        "editor.tabCompletion": "on",
+        "editor.snippetSuggestions": "top"
+      }
+    },
+    "configuration": {
+      "title": "FableScript",
+      "properties": {
+        "fablescript.registryUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL JSON-реестра пакетов FableScript. Также можно указать поле registry в fable.json."
+        }
+      }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "fablescript.runFile",
+          "when": "editorLangId == fablescript",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node ./test/run-tests.js"
+  },
+  "license": "MIT"
+}

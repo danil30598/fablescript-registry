@@ -1,0 +1,8 @@
+print("hello")
+var x = 15
+
+repeat 3 times {
+    x = x * 2
+}
+
+print(x)

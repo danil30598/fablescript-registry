@@ -1,0 +1,23 @@
+var numbers = [1, 2, 3]
+numbers.add(4)
+numbers.remove(2)
+
+print(numbers.len)
+print(numbers[0])
+
+for number in numbers {
+    print(number)
+}
+
+// Без явного типа список может содержать разные значения.
+var mixed = [1, "два", true, {name: "Alex"}]
+print(mixed.len)
+
+var user = {name: "Alex", age: 18}
+print(user.name)
+print(user.age)
+print(user.len)
+
+for key in user {
+    print(key)
+}

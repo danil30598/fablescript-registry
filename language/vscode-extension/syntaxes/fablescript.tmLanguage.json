@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "FableScript",
+  "scopeName": "source.fablescript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.fablescript", "match": "//.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.fablescript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.fablescript", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.fablescript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.fablescript", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.fablescript", "match": "\\b\\d+(?:\\.\\d+)?\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        { "name": "support.function.fablescript", "match": "\\b(print|__init)\\b" },
+        { "name": "variable.language.fablescript", "match": "\\bself\\b" },
+        { "name": "storage.type.fablescript", "match": "\\b(var|int|float|string|bool|list|any)\\b" },
+        { "name": "keyword.control.fablescript", "match": "\\b(if|else|for|in|while|repeat|times|return|import|class|func|and|or|not)\\b" },
+        { "name": "constant.language.fablescript", "match": "\\b(true|false|null)\\b" }
+      ]
+    }
+  }
+}
