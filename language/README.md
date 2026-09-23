@@ -11,6 +11,7 @@ FableScript — экспериментальный язык для обучен�
 - Расширение VS Code с подсветкой, комментариями, скобками и командой запуска.
 - Автодополнение ключевых слов, шаблонов и объявленных переменных.
 - Понятные ошибки с именем файла, строкой и столбцом.
+- Встроенный графический модуль `window` с холстом, фигурами и текстом.
 
 ## Запуск из командной строки
 
@@ -35,7 +36,7 @@ node .\runtime\cli.js run .\examples\hello.fable
 powershell -ExecutionPolicy Bypass -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.18.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.33.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
@@ -82,6 +83,66 @@ fable install greetings
 Или выполнить в палитре команд VS Code `FableScript: Установить пакет`. Установщик сохранит исходник в `fable_modules`, а точную версию и контрольную сумму — в `fable.lock.json`. Формат реестра и тестовый пакет находятся в папке `registry`.
 
 После `import ` редактор предлагает доступные модули, а после `module.` — экспортируемые функции, классы и переменные этого модуля.
+
+## Графические окна
+
+Пакет `window` создаёт настоящее отдельное окно через собственные Python и Pygame. Они ставятся вместе с пакетом, поэтому пользователю не нужно отдельно устанавливать Python или Pygame. Сначала установите графику:
+
+```powershell
+fable install window
+```
+
+Затем подключите её в программе:
+
+```fable
+import window
+
+window.create(800, 520, "Моё окно")
+window.background("#18212f")
+window.rect(60, 70, 260, 140, "#4f8cff")
+window.circle(500, 150, 75, "#ffca3a")
+window.text("Hello!", 60, 320, 38, "white")
+window.show()
+```
+
+Доступны `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `show`, `update`, `isOpen`, `keyDown`, `mouseX`, `mouseY` и `mouseDown`. Интерактивные примеры находятся в `examples/window.fable` и `examples/moving-window.fable`.
+
+Изображение указывается относительно запускаемого `.fable` и рисуется в заданных координатах и размере:
+
+```fable
+window.image("player.png", 100, 200, 64, 64)
+```
+
+Название можно передать в `create` или изменить позже:
+
+```fable
+window.title("Моя игра")
+```
+
+Для движения и ввода используется цикл:
+
+```fable
+window.show()
+while window.isOpen() {
+    window.background("#18212f")
+    if window.keyDown("right") {
+        x = x + 5
+    }
+    window.image("player.png", x, 200, 64, 64)
+    window.update(60)
+}
+```
+
+Названия стрелок: `left`, `right`, `up`, `down`; пробел — `space`. Для `mouseDown` используются `left`, `right` и `middle`. На macOS и Linux пока доступен только статический запасной вариант с Canvas в браузере.
+
+Пакет `window` пока выпускается для Windows x64. Базовый язык и VSIX не содержат тяжёлую графическую среду. Для пересборки пакета разработчику нужен PowerShell 7 и доступ к интернету:
+
+```powershell
+pwsh -NoProfile -File .\tools\build-embedded-python.ps1
+pwsh -NoProfile -File .\tools\package-window-runtime.ps1
+```
+
+Скрипт загружает закреплённые версии Python и Pygame с официальных сайтов и проверяет их SHA-256 перед упаковкой.
 
 Публичный репозиторий: [danil30598/fablescript-registry](https://github.com/danil30598/fablescript-registry). Исходники языка и расширение находятся в `language`, реестр пакетов и описание экосистемы — в `frameworks`. Тестовый пакет устанавливается командой `fable install greetings`, пример его использования находится в `examples/packages/main.fable`.
 

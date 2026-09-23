@@ -272,4 +272,30 @@ assert.throws(
   /Циклический import/,
 );
 
+const nativeCalls = [];
+run(`
+  import window
+  window.create(640, 480, "Test")
+  window.background("navy")
+  window.show()
+`, () => {}, {
+  filePath: 'C:\\project\\graphics.fable',
+  loadModule(name) {
+    assert.equal(name, 'window');
+    return {
+      filePath: 'native:window',
+      nativeExports: {
+        create(...args) { nativeCalls.push(['create', ...args]); },
+        background(...args) { nativeCalls.push(['background', ...args]); },
+        show() { nativeCalls.push(['show']); return true; },
+      },
+    };
+  },
+});
+assert.deepEqual(nativeCalls, [
+  ['create', 640, 480, 'Test'],
+  ['background', 'navy'],
+  ['show'],
+]);
+
 console.log('runtime tests passed');

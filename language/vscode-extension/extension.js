@@ -10,7 +10,7 @@ const runtimePath = fs.existsSync(path.join(packagedRuntime, 'engine.js'))
   ? packagedRuntime
   : developmentRuntime;
 const { FableError, parse, run, validate } = require(path.join(runtimePath, 'engine.js'));
-const { createModuleLoader, findProjectDir, globalModulesDir } = require(path.join(runtimePath, 'module-loader.js'));
+const { builtinModules, createModuleLoader, findProjectDir, globalModulesDir } = require(path.join(runtimePath, 'module-loader.js'));
 const { installPackage } = require(path.join(runtimePath, 'package-manager.js'));
 
 function discoverModules(filePath) {
@@ -21,6 +21,7 @@ function discoverModules(filePath) {
     { path: globalModulesDir(), detail: 'Глобальный пакет FableScript' },
   ];
   const modules = new Map();
+  for (const module of builtinModules()) modules.set(module.name, { ...module, path: null });
   for (const directory of directories) {
     if (!fs.existsSync(directory.path)) continue;
     for (const entry of fs.readdirSync(directory.path, { withFileTypes: true })) {
@@ -202,14 +203,20 @@ function activate(context) {
           const imported = new RegExp(`^\\s*import\\s+${moduleName}\\s*$`, 'm').test(document.getText());
           const module = imported ? modules.find((candidate) => candidate.name === moduleName) : null;
           if (!module) return memberSuggestions;
-          return exportedMembers(module.path).map((member) => {
+          const members = module.members || exportedMembers(module.path);
+          return members.map((member) => {
             const callable = member.kind === 'function' || member.kind === 'class';
             const kind = member.kind === 'function'
               ? vscode.CompletionItemKind.Function
               : member.kind === 'class' ? vscode.CompletionItemKind.Class : vscode.CompletionItemKind.Variable;
             const item = new vscode.CompletionItem(member.name, kind);
             item.detail = `${member.kind === 'class' ? 'Класс' : member.kind === 'function' ? 'Функция' : 'Переменная'} из ${moduleName}`;
-            if (callable) item.insertText = new vscode.SnippetString(`${member.name}($0)`);
+            if (callable) {
+              const parameters = member.parameters || [];
+              const placeholders = parameters.map((parameter, index) => `\${${index + 1}:${parameter}}`).join(', ');
+              item.insertText = new vscode.SnippetString(`${member.name}(${placeholders})`);
+            }
+            if (member.detail) item.documentation = member.detail;
             item.sortText = `0-${member.name}`;
             return item;
           });

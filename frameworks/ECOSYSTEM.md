@@ -6,6 +6,32 @@
 
 Полноценных фреймворков пока нет.
 
+## Встроенные модули
+
+| Модуль | Назначение | Установка |
+| --- | --- | --- |
+| `window` | Графическое окно, фигуры, линии, изображения и ввод | `fable install window` |
+
+### window
+
+Установка:
+
+```powershell
+fable install window
+```
+
+```fable
+import window
+
+window.create(800, 520, "Моё окно")
+window.background("#18212f")
+window.circle(400, 220, 80, "#ffca3a")
+window.text("Hello!", 60, 350, 38, "white")
+window.show()
+```
+
+Экспортируемые функции: `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `show`, `update`, `isOpen`, `keyDown`, `mouseX`, `mouseY`, `mouseDown`.
+
 ## Пакеты
 
 | Пакет | Версия | Назначение | Установка |

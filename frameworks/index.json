@@ -9,6 +9,24 @@
           "sha256": "6a5293239e8b39a27ffd5df82626af3e377eced76de433a6a11a62766e0cd859"
         }
       }
+    },
+    "window": {
+      "latest": "1.0.0",
+      "versions": {
+        "1.0.0": {
+          "kind": "native",
+          "platforms": {
+            "win32-x64": {
+              "url": "./window/window-runtime-1.0.0-win32-x64.zip",
+              "sha256": "068b247bf2b65ea6b4dfae7b5f95fad5b18cb055528e2ce3b13a58c542b48dd9",
+              "entry": {
+                "host": "window-host.py",
+                "python": "python-win-x64/pythonw.exe"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -721,12 +721,12 @@ function checkBlock(program, symbols, context, returns = []) {
       if (!assignable(expected, actual)) throw new FableError(`Поле «${statement.name}» ожидает ${typeName(expected)}, получен ${typeName(actual)}.`, statement.line, statement.column);
     } else if (statement.kind === 'if') {
       const conditionType = typeOf(statement.condition, symbols, context);
-      if (conditionType !== 'bool') throw new FableError('Условие if должно иметь тип bool.', statement.line, statement.column);
+      if (conditionType !== 'bool' && conditionType !== 'any') throw new FableError('Условие if должно иметь тип bool.', statement.line, statement.column);
       checkBlock(statement.thenBranch, new Map(symbols), context, returns);
       checkBlock(statement.elseBranch, new Map(symbols), context, returns);
     } else if (statement.kind === 'while') {
       const conditionType = typeOf(statement.condition, symbols, context);
-      if (conditionType !== 'bool') throw new FableError('Условие while должно иметь тип bool.', statement.line, statement.column);
+      if (conditionType !== 'bool' && conditionType !== 'any') throw new FableError('Условие while должно иметь тип bool.', statement.line, statement.column);
       checkBlock(statement.body, new Map(symbols), context, returns);
     } else if (statement.kind === 'repeat') {
       const countType = typeOf(statement.count, symbols, context);
@@ -848,6 +848,18 @@ function evaluate(expression, values, runtime) {
     const collection = evaluate(expression.object, values, runtime);
     const argumentValues = expression.args.map((argument) => evaluate(argument, values, runtime));
     if (collection && collection.__module) {
+      if (collection.__nativeFunctions) {
+        const nativeFunction = collection.__nativeFunctions.get(expression.name);
+        if (!nativeFunction) throw new FableError(`Во встроенном модуле нет функции «${expression.name}».`, expression.line, expression.column);
+        try {
+          const result = nativeFunction(...argumentValues);
+          if (collection.__moduleName === 'window' && expression.name === 'update') runtime.steps = 0;
+          return result;
+        } catch (error) {
+          if (error instanceof FableError) throw error;
+          throw new FableError(`Ошибка ${collection.__moduleName}.${expression.name}: ${error.message}`, expression.line, expression.column);
+        }
+      }
       if (collection.__functions.has(expression.name)) {
         return invokeFunctionNode(collection.__functions.get(expression.name), argumentValues, runtime, undefined, collection.__runtimeFunctions, collection.__runtimeClasses);
       }
@@ -1036,6 +1048,23 @@ function loadImportedModule(name, runtime, statement) {
   if (!runtime.loadModule) throw new FableError(`Модуль «${name}» нельзя загрузить: загрузчик модулей не настроен.`, statement.line, statement.column);
   try {
     const loaded = runtime.loadModule(name, runtime.currentFile);
+    if (loaded?.nativeExports && typeof loaded.nativeExports === 'object') {
+      const cacheKey = loaded.filePath || `native:${name}`;
+      if (runtime.moduleCache.has(cacheKey)) return runtime.moduleCache.get(cacheKey);
+      const namespace = Object.create(null);
+      const nativeFunctions = new Map();
+      for (const [memberName, value] of Object.entries(loaded.nativeExports)) {
+        if (typeof value === 'function') nativeFunctions.set(memberName, value);
+        else namespace[memberName] = value;
+      }
+      Object.defineProperties(namespace, {
+        __module: { value: true, enumerable: false },
+        __moduleName: { value: name, enumerable: false },
+        __nativeFunctions: { value: nativeFunctions, enumerable: false },
+      });
+      runtime.moduleCache.set(cacheKey, namespace);
+      return namespace;
+    }
     if (!loaded || typeof loaded.source !== 'string' || !loaded.filePath) throw new Error('Загрузчик не вернул файл модуля.');
     return executeModuleSource(loaded.source, loaded.filePath, runtime);
   } catch (error) {
