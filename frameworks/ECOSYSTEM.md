@@ -30,6 +30,8 @@ window.text("Hello!", 60, 350, 38, "white")
 window.show()
 ```
 
+Версия 1.1 добавляет `sprite`, `playSound`, `playMusic`, события `keyPressed`/`keyReleased` и `mousePressed`/`mouseReleased`, а также `collides`, `circlesCollide` и `pointInside`.
+
 Экспортируемые функции: `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `show`, `update`, `isOpen`, `keyDown`, `mouseX`, `mouseY`, `mouseDown`.
 
 ## Пакеты

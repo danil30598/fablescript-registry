@@ -9,7 +9,7 @@
 
 ## Расширение VS Code
 
-Готовый файл: [`language/build/fablescript-0.0.33.vsix`](./language/build/fablescript-0.0.33.vsix).
+Готовый файл: [`language/build/fablescript-0.0.34.vsix`](./language/build/fablescript-0.0.34.vsix).
 
 Расширение добавляет подсветку, диагностику, запуск по `F6` и автодополнение языка, модулей и экспортируемых функций. Отдельный пакет `window` поддерживает фигуры, изображения, клавиатуру, мышь и игровой цикл в нативном окне Windows.
 

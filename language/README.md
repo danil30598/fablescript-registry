@@ -36,7 +36,7 @@ node .\runtime\cli.js run .\examples\hello.fable
 powershell -ExecutionPolicy Bypass -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.33.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.34.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
@@ -105,12 +105,18 @@ window.text("Hello!", 60, 320, 38, "white")
 window.show()
 ```
 
-Доступны `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `show`, `update`, `isOpen`, `keyDown`, `mouseX`, `mouseY` и `mouseDown`. Интерактивные примеры находятся в `examples/window.fable` и `examples/moving-window.fable`.
+Доступны фигуры, изображения, спрайты, звук, музыка, столкновения и события клавиатуры и мыши. Интерактивные примеры находятся в `examples/window.fable`, `examples/moving-window.fable` и `examples/window-events.fable`.
 
 Изображение указывается относительно запускаемого `.fable` и рисуется в заданных координатах и размере:
 
 ```fable
 window.image("player.png", 100, 200, 64, 64)
+```
+
+Спрайт рисуется так же, но последний аргумент задаёт угол поворота в градусах:
+
+```fable
+window.sprite("player.png", x, y, 64, 64, 45)
 ```
 
 Название можно передать в `create` или изменить позже:
@@ -134,6 +140,30 @@ while window.isOpen() {
 ```
 
 Названия стрелок: `left`, `right`, `up`, `down`; пробел — `space`. Для `mouseDown` используются `left`, `right` и `middle`. На macOS и Linux пока доступен только статический запасной вариант с Canvas в браузере.
+
+`keyDown` и `mouseDown` возвращают `true`, пока кнопка удерживается. Функции `keyPressed`, `keyReleased`, `mousePressed` и `mouseReleased` возвращают `true` один раз на событие:
+
+```fable
+if window.keyPressed("space") {
+    window.playSound("jump.wav", 0.8)
+}
+```
+
+Столкновения прямоугольников и кругов можно проверять без ручной математики:
+
+```fable
+if window.collides(playerX, playerY, 64, 64, wallX, wallY, 100, 40) {
+    print("Столкновение")
+}
+```
+
+Звуковые эффекты и музыка поддерживают громкость от `0` до `1`:
+
+```fable
+window.playSound("hit.wav", 0.8)
+window.playMusic("music.ogg", true, 0.5)
+window.stopMusic()
+```
 
 Пакет `window` пока выпускается для Windows x64. Базовый язык и VSIX не содержат тяжёлую графическую среду. Для пересборки пакета разработчику нужен PowerShell 7 и доступ к интернету:
 

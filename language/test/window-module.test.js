@@ -16,14 +16,24 @@ assert.equal(findPythonw({
 let writtenPath = null;
 let writtenScene = null;
 let openedPath = null;
-const inputState = { open: true, keys: ['left'], mouseX: 25, mouseY: 40, mouseButtons: ['left'] };
+const inputState = {
+  open: true,
+  keys: ['left'],
+  keyPresses: { space: 2 },
+  keyReleases: { enter: 1 },
+  mouseX: 25,
+  mouseY: 40,
+  mouseButtons: ['left'],
+  mousePresses: { left: 3 },
+  mouseReleases: { right: 1 },
+};
 const graphics = createWindowModule({
   temporaryDirectory: 'C:\\Temp',
   baseDirectory: 'C:\\Project',
   platform: 'win32',
   writeFile(filePath, contents) { writtenPath = filePath; writtenScene = contents; },
   readFile() { return JSON.stringify(inputState); },
-  fileExists(filePath) { return filePath.endsWith('.state.json') || filePath.endsWith('player.png'); },
+  fileExists(filePath) { return filePath.endsWith('.state.json') || /player\.png|jump\.wav|music\.ogg/.test(filePath); },
   sleep() {},
   openNative(filePath) { openedPath = filePath; return {}; },
 });
@@ -36,6 +46,9 @@ graphics.circle(200, 150, 25, 'yellow');
 graphics.line(0, 0, 50, 50, 'white', 3);
 graphics.text('FableScript', 30, 300, 24, 'white');
 graphics.image('player.png', 300, 200, 64, 64);
+graphics.sprite('player.png', 400, 200, 64, 64, 45);
+graphics.playSound('jump.wav', 0.5);
+graphics.playMusic('music.ogg', true, 0.25);
 assert.equal(graphics.show(), true);
 
 assert.equal(openedPath, writtenPath);
@@ -49,13 +62,27 @@ assert.equal(scene.items[1].kind, 'circle');
 assert.equal(scene.items[3].value, 'FableScript');
 assert.equal(scene.items[4].kind, 'image');
 assert.equal(scene.items[4].path, 'C:\\Project\\player.png');
+assert.equal(scene.items[5].kind, 'sprite');
+assert.equal(scene.items[5].angle, 45);
+assert.equal(scene.commands[0].kind, 'playSound');
+assert.equal(scene.commands[1].kind, 'playMusic');
 assert.equal(graphics.isOpen(), true);
 assert.equal(graphics.keyDown('LEFT'), true);
+assert.equal(graphics.keyPressed('SPACE'), true);
+assert.equal(graphics.keyPressed('SPACE'), false);
+assert.equal(graphics.keyReleased('enter'), true);
 assert.equal(graphics.mouseX(), 25);
 assert.equal(graphics.mouseY(), 40);
 assert.equal(graphics.mouseDown('left'), true);
+assert.equal(graphics.mousePressed('left'), true);
+assert.equal(graphics.mousePressed('left'), false);
+assert.equal(graphics.mouseReleased('right'), true);
+assert.equal(graphics.collides(0, 0, 20, 20, 10, 10, 20, 20), true);
+assert.equal(graphics.collides(0, 0, 10, 10, 10, 0, 10, 10), false);
+assert.equal(graphics.circlesCollide(0, 0, 10, 15, 0, 10), true);
+assert.equal(graphics.pointInside(5, 5, 0, 0, 10, 10), true);
 assert.equal(graphics.update(60), true);
-assert.throws(() => graphics.image('missing.png', 0, 0, 10, 10), /не найдено/);
+assert.throws(() => graphics.image('missing.png', 0, 0, 10, 10), /Не найден файл/);
 assert.throws(() => graphics.circle(0, 0, -1, 'red'), /положительным числом/);
 
 let fallbackHtml = '';

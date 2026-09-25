@@ -55,18 +55,63 @@ def main(scene_path):
         clock = pygame.time.Clock()
         fonts = {}
         images = {}
+        sounds = {}
+        processed_commands = set()
         keys = set()
+        key_presses = {}
+        key_releases = {}
+        mouse_presses = {}
+        mouse_releases = {}
         last_scene_time = os.stat(scene_path).st_mtime_ns
         running = True
+
+        def increment(counters, name):
+            counters[name] = counters.get(name, 0) + 1
+
+        def button_name(button):
+            return {1: "left", 2: "middle", 3: "right"}.get(button, str(button))
+
+        def ensure_mixer():
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+
+        def process_commands():
+            for command in scene.get("commands", []):
+                command_id = command.get("id")
+                if command_id in processed_commands:
+                    continue
+                processed_commands.add(command_id)
+                kind = command.get("kind")
+                if kind == "playSound":
+                    ensure_mixer()
+                    sound_path = command["path"]
+                    if sound_path not in sounds:
+                        sounds[sound_path] = pygame.mixer.Sound(sound_path)
+                    sounds[sound_path].set_volume(float(command.get("volume", 1)))
+                    sounds[sound_path].play()
+                elif kind == "stopSounds":
+                    if pygame.mixer.get_init():
+                        pygame.mixer.stop()
+                elif kind == "playMusic":
+                    ensure_mixer()
+                    pygame.mixer.music.load(command["path"])
+                    pygame.mixer.music.set_volume(float(command.get("volume", 1)))
+                    pygame.mixer.music.play(-1 if command.get("loop", True) else 0)
+                elif kind == "stopMusic" and pygame.mixer.get_init():
+                    pygame.mixer.music.stop()
 
         def publish_state(is_open):
             mouse_buttons = pygame.mouse.get_pressed(3)
             write_state(state_path, {
                 "open": is_open,
                 "keys": sorted(keys),
+                "keyPresses": key_presses,
+                "keyReleases": key_releases,
                 "mouseX": pygame.mouse.get_pos()[0],
                 "mouseY": pygame.mouse.get_pos()[1],
                 "mouseButtons": [name for index, name in enumerate(("left", "middle", "right")) if mouse_buttons[index]],
+                "mousePresses": mouse_presses,
+                "mouseReleases": mouse_releases,
                 "focused": bool(pygame.key.get_focused()),
             })
 
@@ -78,12 +123,23 @@ def main(scene_path):
                     running = False
                     state_changed = True
                 elif event.type == pygame.KEYDOWN:
-                    keys.add(pygame.key.name(event.key).lower())
+                    key_name = pygame.key.name(event.key).lower()
+                    keys.add(key_name)
+                    if not getattr(event, "repeat", False):
+                        increment(key_presses, key_name)
                     state_changed = True
                 elif event.type == pygame.KEYUP:
-                    keys.discard(pygame.key.name(event.key).lower())
+                    key_name = pygame.key.name(event.key).lower()
+                    keys.discard(key_name)
+                    increment(key_releases, key_name)
                     state_changed = True
-                elif event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    increment(mouse_presses, button_name(event.button))
+                    state_changed = True
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    increment(mouse_releases, button_name(event.button))
+                    state_changed = True
+                elif event.type == pygame.MOUSEMOTION:
                     state_changed = True
                 elif event.type == pygame.WINDOWFOCUSLOST:
                     keys.clear()
@@ -106,6 +162,7 @@ def main(scene_path):
                 pass
 
             pygame.display.set_caption(str(scene.get("title", "FableScript")))
+            process_commands()
             screen.fill(color(pygame, scene.get("background", "black")))
             for item in scene.get("items", []):
                 kind = item.get("kind")
@@ -127,6 +184,17 @@ def main(scene_path):
                         loaded = pygame.image.load(item["path"]).convert_alpha()
                         images[image_key] = pygame.transform.smoothscale(loaded, image_key[1:])
                     screen.blit(images[image_key], (item["x"], item["y"]))
+                elif kind == "sprite":
+                    image_key = (item["path"], int(item["width"]), int(item["height"]))
+                    if image_key not in images:
+                        loaded = pygame.image.load(item["path"]).convert_alpha()
+                        images[image_key] = pygame.transform.smoothscale(loaded, image_key[1:])
+                    sprite = images[image_key]
+                    angle = float(item.get("angle", 0))
+                    if angle:
+                        sprite = pygame.transform.rotate(sprite, angle)
+                    target = sprite.get_rect(center=(item["x"] + item["width"] / 2, item["y"] + item["height"] / 2))
+                    screen.blit(sprite, target)
 
             pygame.display.flip()
             clock.tick(120)

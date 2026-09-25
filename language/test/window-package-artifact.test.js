@@ -10,15 +10,17 @@ const { installPackage } = require('../runtime/package-manager');
 
 async function main() {
   const projectRoot = path.resolve(__dirname, '..');
-  const localArchive = path.join(projectRoot, 'build', 'window-runtime-1.0.0-win32-x64.zip');
+  const registryLocal = path.join(projectRoot, 'registry', 'index.json');
+  const registryPath = fs.existsSync(registryLocal) ? registryLocal : path.join(projectRoot, '..', 'frameworks', 'index.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  const version = registry.packages.window.latest;
+  const release = registry.packages.window.versions[version];
+  const archiveName = `window-runtime-${version}-win32-x64.zip`;
+  const localArchive = path.join(projectRoot, 'build', archiveName);
   const archivePath = fs.existsSync(localArchive)
     ? localArchive
-    : path.join(projectRoot, '..', 'frameworks', 'window', 'window-runtime-1.0.0-win32-x64.zip');
+    : path.join(projectRoot, '..', 'frameworks', 'window', archiveName);
   const archive = fs.readFileSync(archivePath);
-  const localRegistry = path.join(projectRoot, 'registry', 'index.json');
-  const registryPath = fs.existsSync(localRegistry) ? localRegistry : path.join(projectRoot, '..', 'frameworks', 'index.json');
-  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  const release = registry.packages.window.versions['1.0.0'];
   assert.equal(crypto.createHash('sha256').update(archive).digest('hex'), release.platforms['win32-x64'].sha256);
 
   const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fablescript-window-package-'));

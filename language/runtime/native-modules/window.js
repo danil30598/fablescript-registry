@@ -16,13 +16,25 @@ const WINDOW_MEMBERS = [
   { kind: 'function', name: 'line', parameters: ['x1', 'y1', 'x2', 'y2', 'color', 'width'], detail: 'Нарисовать линию' },
   { kind: 'function', name: 'text', parameters: ['value', 'x', 'y', 'size', 'color'], detail: 'Нарисовать текст' },
   { kind: 'function', name: 'image', parameters: ['file', 'x', 'y', 'width', 'height'], detail: 'Нарисовать изображение из файла' },
+  { kind: 'function', name: 'sprite', parameters: ['file', 'x', 'y', 'width', 'height', 'angle'], detail: 'Нарисовать повёрнутый спрайт' },
   { kind: 'function', name: 'show', parameters: [], detail: 'Открыть окно' },
   { kind: 'function', name: 'update', parameters: ['fps'], detail: 'Показать новый кадр и ограничить FPS' },
   { kind: 'function', name: 'isOpen', parameters: [], detail: 'Проверить, открыто ли окно' },
   { kind: 'function', name: 'keyDown', parameters: ['key'], detail: 'Проверить, нажата ли клавиша' },
+  { kind: 'function', name: 'keyPressed', parameters: ['key'], detail: 'Один раз определить нажатие клавиши' },
+  { kind: 'function', name: 'keyReleased', parameters: ['key'], detail: 'Один раз определить отпускание клавиши' },
   { kind: 'function', name: 'mouseX', parameters: [], detail: 'Координата мыши по X' },
   { kind: 'function', name: 'mouseY', parameters: [], detail: 'Координата мыши по Y' },
   { kind: 'function', name: 'mouseDown', parameters: ['button'], detail: 'Проверить кнопку мыши' },
+  { kind: 'function', name: 'mousePressed', parameters: ['button'], detail: 'Один раз определить нажатие кнопки мыши' },
+  { kind: 'function', name: 'mouseReleased', parameters: ['button'], detail: 'Один раз определить отпускание кнопки мыши' },
+  { kind: 'function', name: 'collides', parameters: ['x1', 'y1', 'width1', 'height1', 'x2', 'y2', 'width2', 'height2'], detail: 'Проверить столкновение прямоугольников' },
+  { kind: 'function', name: 'circlesCollide', parameters: ['x1', 'y1', 'radius1', 'x2', 'y2', 'radius2'], detail: 'Проверить столкновение кругов' },
+  { kind: 'function', name: 'pointInside', parameters: ['pointX', 'pointY', 'x', 'y', 'width', 'height'], detail: 'Проверить точку внутри прямоугольника' },
+  { kind: 'function', name: 'playSound', parameters: ['file', 'volume'], detail: 'Воспроизвести звуковой эффект' },
+  { kind: 'function', name: 'stopSounds', parameters: [], detail: 'Остановить звуковые эффекты' },
+  { kind: 'function', name: 'playMusic', parameters: ['file', 'loop', 'volume'], detail: 'Воспроизвести фоновую музыку' },
+  { kind: 'function', name: 'stopMusic', parameters: [], detail: 'Остановить фоновую музыку' },
 ];
 
 function finiteNumber(value, name, { positive = false } = {}) {
@@ -35,6 +47,12 @@ function finiteNumber(value, name, { positive = false } = {}) {
 function colorValue(value) {
   if (typeof value !== 'string' || !value.trim()) throw new Error('Цвет должен быть непустой строкой.');
   return value;
+}
+
+function unitNumber(value, name, defaultValue) {
+  const actual = value === undefined ? defaultValue : finiteNumber(value, name);
+  if (actual < 0 || actual > 1) throw new Error(`${name} должен быть числом от 0 до 1.`);
+  return actual;
 }
 
 function defaultOpenExternal(filePath) {
@@ -105,6 +123,15 @@ function htmlFor(scene) {
       if (item.kind === 'image') {
         const image = new Image(); image.src = item.uri; image.onload = () => ctx.drawImage(image, item.x, item.y, item.width, item.height);
       }
+      if (item.kind === 'sprite') {
+        const image = new Image(); image.src = item.uri; image.onload = () => {
+          ctx.save();
+          ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+          ctx.rotate(item.angle * Math.PI / 180);
+          ctx.drawImage(image, -item.width / 2, -item.height / 2, item.width, item.height);
+          ctx.restore();
+        };
+      }
     }
   </script>
 </body>
@@ -121,11 +148,13 @@ function createWindowModule(options = {}) {
   const readFile = options.readFile || ((filePath) => fs.readFileSync(filePath, 'utf8'));
   const fileExists = options.fileExists || fs.existsSync;
   const sleep = options.sleep || ((milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds));
-  const scene = { width: 800, height: 600, title: 'FableScript', background: '#20242b', items: [] };
+  const scene = { width: 800, height: 600, title: 'FableScript', background: '#20242b', items: [], commands: [] };
   let scenePath = null;
   let statePath = null;
   let nativeChild = null;
   let lastFrameAt = 0;
+  let commandId = 0;
+  const observedEvents = new Map();
 
   const writeScene = () => {
     if (!scenePath) return;
@@ -144,6 +173,29 @@ function createWindowModule(options = {}) {
     try { return JSON.parse(readFile(statePath)); }
     catch { return { open: Boolean(nativeChild) }; }
   };
+  const assetPath = (file, description) => {
+    if (typeof file !== 'string' || !file.trim()) throw new Error(`${description} должен быть указан строкой.`);
+    const resolved = path.isAbsolute(file) ? path.normalize(file) : path.resolve(baseDirectory, file);
+    if (!fileExists(resolved)) throw new Error(`Не найден файл «${description}»: ${resolved}`);
+    return resolved;
+  };
+  const queueCommand = (kind, values = {}) => {
+    scene.commands.push({ id: ++commandId, kind, ...values });
+    if (scenePath) {
+      writeScene();
+      scene.commands = [];
+    }
+    return true;
+  };
+  const eventOccurred = (stateField, name) => {
+    if (typeof name !== 'string') throw new Error('Имя клавиши или кнопки должно быть строкой.');
+    const normalized = name.toLowerCase();
+    const count = Number(readState()[stateField]?.[normalized] || 0);
+    const eventKey = `${stateField}:${normalized}`;
+    const previous = observedEvents.get(eventKey) || 0;
+    observedEvents.set(eventKey, count);
+    return count > previous;
+  };
 
   return {
     create(width, height, title) {
@@ -152,6 +204,7 @@ function createWindowModule(options = {}) {
       if (typeof title !== 'string') throw new Error('Заголовок должен быть строкой.');
       scene.title = title;
       scene.items = [];
+      scene.commands = [];
     },
     title(value) {
       if (typeof value !== 'string') throw new Error('Название окна должно быть строкой.');
@@ -174,10 +227,12 @@ function createWindowModule(options = {}) {
       scene.items.push({ kind: 'text', value: String(value), x: finiteNumber(x, 'x'), y: finiteNumber(y, 'y'), size: finiteNumber(size, 'Размер текста', { positive: true }), color: colorValue(color) });
     },
     image(file, x, y, width, height) {
-      if (typeof file !== 'string' || !file.trim()) throw new Error('Путь к изображению должен быть строкой.');
-      const imagePath = path.isAbsolute(file) ? path.normalize(file) : path.resolve(baseDirectory, file);
-      if (!fileExists(imagePath)) throw new Error(`Изображение не найдено: ${imagePath}`);
+      const imagePath = assetPath(file, 'Изображение');
       scene.items.push({ kind: 'image', path: imagePath, uri: pathToFileURL(imagePath).href, x: finiteNumber(x, 'x'), y: finiteNumber(y, 'y'), width: finiteNumber(width, 'Ширина', { positive: true }), height: finiteNumber(height, 'Высота', { positive: true }) });
+    },
+    sprite(file, x, y, width, height, angle) {
+      const imagePath = assetPath(file, 'Изображение спрайта');
+      scene.items.push({ kind: 'sprite', path: imagePath, uri: pathToFileURL(imagePath).href, x: finiteNumber(x, 'x'), y: finiteNumber(y, 'y'), width: finiteNumber(width, 'Ширина', { positive: true }), height: finiteNumber(height, 'Высота', { positive: true }), angle: angle === undefined ? 0 : finiteNumber(angle, 'Угол') });
     },
     show() {
       if (platform === 'win32') {
@@ -185,6 +240,7 @@ function createWindowModule(options = {}) {
         scenePath = path.join(temporaryDirectory, `fablescript-window-${randomUUID()}.json`);
         statePath = `${scenePath}.state.json`;
         writeScene();
+        scene.commands = [];
         nativeChild = openNative(scenePath);
         lastFrameAt = Date.now();
         return true;
@@ -198,6 +254,7 @@ function createWindowModule(options = {}) {
       if (!scenePath) throw new Error('Сначала вызовите window.show().');
       const frameRate = finiteNumber(fps, 'FPS', { positive: true });
       writeScene();
+      scene.commands = [];
       const frameTime = 1000 / frameRate;
       const remaining = frameTime - (Date.now() - lastFrameAt);
       if (remaining > 0) sleep(remaining);
@@ -209,12 +266,51 @@ function createWindowModule(options = {}) {
       if (typeof key !== 'string') throw new Error('Имя клавиши должно быть строкой.');
       return (readState().keys || []).includes(key.toLowerCase());
     },
+    keyPressed(key) { return eventOccurred('keyPresses', key); },
+    keyReleased(key) { return eventOccurred('keyReleases', key); },
     mouseX() { return Number(readState().mouseX || 0); },
     mouseY() { return Number(readState().mouseY || 0); },
     mouseDown(button) {
       if (typeof button !== 'string') throw new Error('Имя кнопки мыши должно быть строкой.');
       return (readState().mouseButtons || []).includes(button.toLowerCase());
     },
+    mousePressed(button) { return eventOccurred('mousePresses', button); },
+    mouseReleased(button) { return eventOccurred('mouseReleases', button); },
+    collides(x1, y1, width1, height1, x2, y2, width2, height2) {
+      const left1 = finiteNumber(x1, 'x1');
+      const top1 = finiteNumber(y1, 'y1');
+      const w1 = finiteNumber(width1, 'Ширина 1', { positive: true });
+      const h1 = finiteNumber(height1, 'Высота 1', { positive: true });
+      const left2 = finiteNumber(x2, 'x2');
+      const top2 = finiteNumber(y2, 'y2');
+      const w2 = finiteNumber(width2, 'Ширина 2', { positive: true });
+      const h2 = finiteNumber(height2, 'Высота 2', { positive: true });
+      return left1 < left2 + w2 && left1 + w1 > left2 && top1 < top2 + h2 && top1 + h1 > top2;
+    },
+    circlesCollide(x1, y1, radius1, x2, y2, radius2) {
+      const dx = finiteNumber(x1, 'x1') - finiteNumber(x2, 'x2');
+      const dy = finiteNumber(y1, 'y1') - finiteNumber(y2, 'y2');
+      const radius = finiteNumber(radius1, 'Радиус 1', { positive: true }) + finiteNumber(radius2, 'Радиус 2', { positive: true });
+      return dx * dx + dy * dy < radius * radius;
+    },
+    pointInside(pointX, pointY, x, y, width, height) {
+      const px = finiteNumber(pointX, 'Координата точки X');
+      const py = finiteNumber(pointY, 'Координата точки Y');
+      const left = finiteNumber(x, 'x');
+      const top = finiteNumber(y, 'y');
+      const w = finiteNumber(width, 'Ширина', { positive: true });
+      const h = finiteNumber(height, 'Высота', { positive: true });
+      return px >= left && px <= left + w && py >= top && py <= top + h;
+    },
+    playSound(file, volume) {
+      return queueCommand('playSound', { path: assetPath(file, 'Звук'), volume: unitNumber(volume, 'Громкость', 1) });
+    },
+    stopSounds() { return queueCommand('stopSounds'); },
+    playMusic(file, loop, volume) {
+      if (loop !== undefined && typeof loop !== 'boolean') throw new Error('Параметр loop должен быть true или false.');
+      return queueCommand('playMusic', { path: assetPath(file, 'Музыка'), loop: loop === undefined ? true : loop, volume: unitNumber(volume, 'Громкость', 1) });
+    },
+    stopMusic() { return queueCommand('stopMusic'); },
   };
 }
 

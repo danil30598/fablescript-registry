@@ -1,0 +1,40 @@
+import window
+
+var playerX = 60
+var playerY = 220
+var obstacleX = 520
+var obstacleY = 190
+
+window.create(800, 520, "FableScript events")
+window.show()
+
+while window.isOpen() {
+    if window.keyDown("left") {
+        playerX = playerX - 5
+    }
+    if window.keyDown("right") {
+        playerX = playerX + 5
+    }
+    if window.keyDown("up") {
+        playerY = playerY - 5
+    }
+    if window.keyDown("down") {
+        playerY = playerY + 5
+    }
+
+    if window.keyPressed("space") {
+        print("Пробел нажат один раз")
+    }
+
+    window.background("#18212f")
+    window.rect(playerX, playerY, 70, 70, "#4f8cff")
+    window.rect(obstacleX, obstacleY, 100, 130, "#ffca3a")
+
+    if window.collides(playerX, playerY, 70, 70, obstacleX, obstacleY, 100, 130) {
+        window.text("Столкновение!", 40, 40, 30, "#ff595e")
+    } else {
+        window.text("Стрелки — движение, пробел — событие", 40, 40, 24, "white")
+    }
+
+    window.update(60)
+}

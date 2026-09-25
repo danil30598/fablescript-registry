@@ -4,8 +4,8 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $stagingRoot = Join-Path $projectRoot '.vsix-staging'
 $extensionRoot = Join-Path $stagingRoot 'extension'
 $buildRoot = Join-Path $projectRoot 'build'
-$zipPath = Join-Path $buildRoot 'fablescript-0.0.33.zip'
-$vsixPath = Join-Path $buildRoot 'fablescript-0.0.33.vsix'
+$zipPath = Join-Path $buildRoot 'fablescript-0.0.34.zip'
+$vsixPath = Join-Path $buildRoot 'fablescript-0.0.34.vsix'
 if (-not $stagingRoot.StartsWith($projectRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
     (Split-Path $stagingRoot -Leaf) -ne '.vsix-staging') {
     throw 'Unsafe staging path.'

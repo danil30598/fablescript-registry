@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$packageVersion = '1.0.0'
+$packageVersion = '1.1.0'
 $platform = 'win32-x64'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $pythonRoot = Join-Path $projectRoot 'runtime\vendor\python-win-x64'
