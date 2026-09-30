@@ -1,0 +1,75 @@
+import window
+import random
+
+var playerX = 365.0
+var playerY = 430.0
+var enemyX = random.float(20, 720)
+var enemyY = -80.0
+var score = 0
+var gameOver = false
+
+window.create(800, 520, "FableScript: Dodge")
+window.show()
+
+while window.isOpen() {
+    if window.keyPressed("escape") {
+        break
+    }
+
+    var dt = window.deltaTime()
+    if dt > 0.1 {
+        dt = 0.1
+    }
+
+    if gameOver {
+        window.background("#111827")
+        window.text("Игра окончена", 270, 170, 38, "#ff595e")
+        window.text("Счёт", 340, 230, 24, "white")
+        window.text(score, 390, 230, 24, "#ffca3a")
+        window.text("Пробел — заново, Escape — выход", 205, 290, 22, "#b8c4d6")
+
+        if window.keyPressed("space") {
+            playerX = 365.0
+            enemyX = random.float(20, 720)
+            enemyY = -80.0
+            score = 0
+            gameOver = false
+        }
+
+        window.update(60)
+        continue
+    }
+
+    if window.keyDown("left") {
+        playerX = playerX - 320 * dt
+    }
+    if window.keyDown("right") {
+        playerX = playerX + 320 * dt
+    }
+    if playerX < 0 {
+        playerX = 0.0
+    }
+    if playerX > 730 {
+        playerX = 730.0
+    }
+
+    var enemySpeed = 220.0 + score * 8
+    enemyY = enemyY + enemySpeed * dt
+    if enemyY > 520 {
+        enemyX = random.float(20, 720)
+        enemyY = -80.0
+        score = score + 1
+    }
+
+    if window.collides(playerX, playerY, 70, 55, enemyX, enemyY, 60, 60) {
+        gameOver = true
+        continue
+    }
+
+    window.background("#111827")
+    window.text("Счёт", 25, 20, 22, "white")
+    window.text(score, 90, 20, 22, "#ffca3a")
+    window.rect(playerX, playerY, 70, 55, "#4f8cff")
+    window.rect(enemyX, enemyY, 60, 60, "#ff595e")
+    window.update(60)
+}

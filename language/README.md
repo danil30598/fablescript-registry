@@ -11,7 +11,9 @@ FableScript — экспериментальный язык для обучен�
 - Расширение VS Code с подсветкой, комментариями, скобками и командой запуска.
 - Автодополнение ключевых слов, шаблонов и объявленных переменных.
 - Понятные ошибки с именем файла, строкой и столбцом.
-- Встроенный графический модуль `window` с холстом, фигурами и текстом.
+- Пакет `window` с нативным окном, игровым циклом, вводом, спрайтами, звуком и столкновениями.
+- Встроенный модуль `random` для случайных чисел, выбора элементов и вероятностей.
+- Управление циклами с помощью `break` и `continue`.
 
 ## Запуск из командной строки
 
@@ -33,10 +35,10 @@ node .\runtime\cli.js run .\examples\hello.fable
 Готовый установочный файл можно собрать без npm:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\package-extension.ps1
+pwsh -NoProfile -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.34.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.35.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
@@ -69,7 +71,7 @@ print(math.PI)
 Глобальную команду можно установить один раз:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\install-cli.ps1
+pwsh -NoProfile -File .\tools\install-cli.ps1
 ```
 
 После открытия нового PowerShell пакет устанавливается из любой папки:
@@ -139,6 +141,13 @@ while window.isOpen() {
 }
 ```
 
+Чтобы скорость движения не зависела от частоты кадров, умножайте её на `window.deltaTime()`:
+
+```fable
+var dt = window.deltaTime()
+x = x + 320 * dt
+```
+
 Названия стрелок: `left`, `right`, `up`, `down`; пробел — `space`. Для `mouseDown` используются `left`, `right` и `middle`. На macOS и Linux пока доступен только статический запасной вариант с Canvas в браузере.
 
 `keyDown` и `mouseDown` возвращают `true`, пока кнопка удерживается. Функции `keyPressed`, `keyReleased`, `mousePressed` и `mouseReleased` возвращают `true` один раз на событие:
@@ -164,6 +173,23 @@ window.playSound("hit.wav", 0.8)
 window.playMusic("music.ogg", true, 0.5)
 window.stopMusic()
 ```
+
+## Случайные числа и игровой пример
+
+Модуль `random` входит в язык и не требует отдельной установки:
+
+```fable
+import random
+
+var enemyX = random.float(20, 720)
+var dice = random.int(1, 6)
+var color = random.choice(["red", "green", "blue"])
+if random.chance(0.25) {
+    print("Событие произошло")
+}
+```
+
+В циклах доступны `break` для выхода и `continue` для перехода к следующей итерации. Готовая мини-игра с движением, случайными препятствиями, счётом и перезапуском находится в `examples/dodge-game.fable`. Перед запуском установите `window`, затем откройте пример и нажмите `F6`.
 
 Пакет `window` пока выпускается для Windows x64. Базовый язык и VSIX не содержат тяжёлую графическую среду. Для пересборки пакета разработчику нужен PowerShell 7 и доступ к интернету:
 

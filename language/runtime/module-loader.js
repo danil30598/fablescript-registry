@@ -3,9 +3,11 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { RANDOM_MEMBERS, createRandomModule } = require('./native-modules/random');
 const { WINDOW_MEMBERS, createWindowModule } = require('./native-modules/window');
 
 const BUILTIN_MODULES = [
+  { name: 'random', detail: 'Случайные числа и выбор элементов', members: RANDOM_MEMBERS },
   { name: 'window', detail: 'Графика FableScript — установите: fable install window', members: WINDOW_MEMBERS },
 ];
 
@@ -60,6 +62,9 @@ function findNativePackage(name, projectDir) {
 function createModuleLoader(entryFilePath) {
   const projectDir = findProjectDir(entryFilePath);
   return (name, importerPath) => {
+    if (name === 'random') {
+      return { filePath: 'native:random', nativeExports: createRandomModule(), nativeMembers: RANDOM_MEMBERS };
+    }
     if (name === 'window') {
       const installed = findNativePackage(name, projectDir);
       if (!installed) throw new Error('Пакет window не установлен. Выполните: fable install window');

@@ -233,6 +233,8 @@ function activate(context) {
           snippet('while', 'while ${1:condition} {\n\t${0}\n}', 'Цикл с условием'),
           snippet('repeat', 'repeat ${1:count} times {\n\t${0}\n}', 'Повторить блок заданное число раз'),
           snippet('for', 'for ${1:item} in ${2:collection} {\n\t${0}\n}', 'Перебрать список или ключи таблицы'),
+          snippet('break', 'break', 'Завершить текущий цикл'),
+          snippet('continue', 'continue', 'Перейти к следующей итерации цикла'),
           snippet('func', 'func ${1:name}(${2:int value})\n{\n\t${0}\n}', 'Объявить функцию'),
           snippet('class', 'class ${1:Name}\n{\n\t${0}\n}', 'Объявить класс'),
           snippet('__init', '__init(${1:parameters})\n{\n\t${0}\n}', 'Конструктор класса'),
@@ -247,7 +249,7 @@ function activate(context) {
           suggestions.push(item);
         }
 
-        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'and', 'or', 'not', 'in', 'times']) {
+        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'and', 'or', 'not', 'in', 'times', 'break', 'continue']) {
           const item = new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Keyword);
           item.detail = 'Ключевое слово FableScript';
           item.sortText = `1-${keyword}`;

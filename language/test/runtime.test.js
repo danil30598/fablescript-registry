@@ -106,6 +106,41 @@ run(`
 `, (value) => loopOutput.push(value));
 assert.deepEqual(loopOutput, ['0', '1', '2', 'repeat', 'repeat']);
 
+const loopControlOutput = [];
+run(`
+  var number = 0
+  while true {
+    number = number + 1
+    if number == 2 {
+      continue
+    }
+    print(number)
+    if number == 4 {
+      break
+    }
+  }
+  repeat 3 times {
+    print("outer")
+    repeat 5 times {
+      print("inner")
+      break
+    }
+  }
+  for item in [1, 2, 3] {
+    if item == 2 {
+      continue
+    }
+    print(item)
+  }
+`, (value) => loopControlOutput.push(value));
+assert.deepEqual(loopControlOutput, ['1', '3', '4', 'outer', 'inner', 'outer', 'inner', 'outer', 'inner', '1', '3']);
+
+for (const keyword of ['break', 'continue']) {
+  const loopControlErrors = validate(keyword);
+  assert.equal(loopControlErrors.length, 1);
+  assert.match(loopControlErrors[0].message, /только внутри цикла/);
+}
+
 const repeatTypeErrors = validate('repeat 2.5 times {\nprint("wrong")\n}');
 assert.equal(repeatTypeErrors.length, 1);
 assert.match(repeatTypeErrors[0].message, /тип int/);

@@ -1,5 +1,7 @@
 'use strict';
 
+const { builtinReturnType } = require('./native-modules/signatures');
+
 class FableError extends Error {
   constructor(message, line, column) {
     super(message);
@@ -245,6 +247,8 @@ function parseSimpleStatement(sourceLine) {
   const text = sourceLine.text.endsWith(';') ? sourceLine.text.slice(0, -1).trimEnd() : sourceLine.text;
   let match = text.match(/^import\s+([A-Za-z_][A-Za-z0-9_]*)$/);
   if (match) return { kind: 'import', name: match[1], ...sourceLine };
+  if (text === 'break') return { kind: 'break', ...sourceLine };
+  if (text === 'continue') return { kind: 'continue', ...sourceLine };
   match = text.match(/^return(?:\s+(.+))?$/);
   if (match) {
     const expressionText = match[1];
@@ -587,7 +591,7 @@ function typeOf(expression, symbols, context) {
     const object = typeOf(expression.object, symbols, context);
     if (typeof object !== 'string' && object.kind === 'module') {
       for (const argument of expression.args) typeOf(argument, symbols, context);
-      return 'any';
+      return builtinReturnType(object.name, expression.name);
     }
     if (typeof object !== 'string' && object.kind === 'instance') {
       const method = object.methods.get(expression.name);
@@ -727,11 +731,11 @@ function checkBlock(program, symbols, context, returns = []) {
     } else if (statement.kind === 'while') {
       const conditionType = typeOf(statement.condition, symbols, context);
       if (conditionType !== 'bool' && conditionType !== 'any') throw new FableError('Условие while должно иметь тип bool.', statement.line, statement.column);
-      checkBlock(statement.body, new Map(symbols), context, returns);
+      checkBlock(statement.body, new Map(symbols), { ...context, loopDepth: (context.loopDepth || 0) + 1 }, returns);
     } else if (statement.kind === 'repeat') {
       const countType = typeOf(statement.count, symbols, context);
       if (countType !== 'int') throw new FableError('Количество повторений должно иметь тип int.', statement.line, statement.column);
-      checkBlock(statement.body, new Map(symbols), context, returns);
+      checkBlock(statement.body, new Map(symbols), { ...context, loopDepth: (context.loopDepth || 0) + 1 }, returns);
     } else if (statement.kind === 'for') {
       if (symbols.has(statement.name)) throw new FableError(`Переменная «${statement.name}» уже объявлена.`, statement.line, statement.column);
       const collectionType = typeOf(statement.collection, symbols, context);
@@ -741,7 +745,9 @@ function checkBlock(program, symbols, context, returns = []) {
       else throw new FableError('Цикл for работает со списком или таблицей.', statement.line, statement.column);
       const loopSymbols = new Map(symbols);
       loopSymbols.set(statement.name, itemType);
-      checkBlock(statement.body, loopSymbols, context, returns);
+      checkBlock(statement.body, loopSymbols, { ...context, loopDepth: (context.loopDepth || 0) + 1 }, returns);
+    } else if (statement.kind === 'break' || statement.kind === 'continue') {
+      if (!(context.loopDepth > 0)) throw new FableError(`${statement.kind} можно использовать только внутри цикла.`, statement.line, statement.column);
     } else if (statement.kind === 'return') {
       if (!context.currentFunction) throw new FableError('return можно использовать только внутри функции.', statement.line, statement.column);
       const actual = statement.expression ? typeOf(statement.expression, symbols, context) : 'void';
@@ -786,7 +792,7 @@ function check(program) {
       checked: false,
     });
   }
-  const context = { functions, classes, currentFunction: null };
+  const context = { functions, classes, currentFunction: null, loopDepth: 0 };
   for (const fn of functions.values()) inferFunction(fn, context);
   for (const classInfo of classes.values()) {
     if (classInfo.constructor) inferFunction(classInfo.constructor, context);
@@ -915,6 +921,10 @@ function formatValue(value) {
 
 function executeBlock(program, values, runtime, scoped) {
   const declaredHere = [];
+  const finish = (result) => {
+    if (scoped) for (const name of declaredHere) values.delete(name);
+    return result;
+  };
   for (const statement of program) {
     runtime.steps += 1;
     if (runtime.steps > runtime.maxSteps) throw new FableError('Превышен предел выполнения цикла.', statement.line, statement.column);
@@ -933,19 +943,15 @@ function executeBlock(program, values, runtime, scoped) {
     else if (statement.kind === 'if') {
       const branch = evaluate(statement.condition, values, runtime) ? statement.thenBranch : statement.elseBranch;
       const result = executeBlock(branch, values, runtime, true);
-      if (result?.returned) {
-        if (scoped) for (const name of declaredHere) values.delete(name);
-        return result;
-      }
+      if (result?.returned || result?.broken || result?.continued) return finish(result);
     } else if (statement.kind === 'while') {
       while (evaluate(statement.condition, values, runtime)) {
         runtime.steps += 1;
         if (runtime.steps > runtime.maxSteps) throw new FableError('Превышен предел выполнения цикла.', statement.line, statement.column);
         const result = executeBlock(statement.body, values, runtime, true);
-        if (result?.returned) {
-          if (scoped) for (const name of declaredHere) values.delete(name);
-          return result;
-        }
+        if (result?.returned) return finish(result);
+        if (result?.broken) break;
+        if (result?.continued) continue;
       }
     } else if (statement.kind === 'repeat') {
       const count = evaluate(statement.count, values, runtime);
@@ -954,10 +960,9 @@ function executeBlock(program, values, runtime, scoped) {
         runtime.steps += 1;
         if (runtime.steps > runtime.maxSteps) throw new FableError('Превышен предел выполнения цикла.', statement.line, statement.column);
         const result = executeBlock(statement.body, values, runtime, true);
-        if (result?.returned) {
-          if (scoped) for (const name of declaredHere) values.delete(name);
-          return result;
-        }
+        if (result?.returned) return finish(result);
+        if (result?.broken) break;
+        if (result?.continued) continue;
       }
     } else if (statement.kind === 'for') {
       const collection = evaluate(statement.collection, values, runtime);
@@ -969,20 +974,23 @@ function executeBlock(program, values, runtime, scoped) {
         const result = executeBlock(statement.body, values, runtime, true);
         if (result?.returned) {
           values.delete(statement.name);
-          if (scoped) for (const name of declaredHere) values.delete(name);
-          return result;
+          return finish(result);
         }
+        if (result?.broken) break;
+        if (result?.continued) continue;
       }
       values.delete(statement.name);
+    } else if (statement.kind === 'break') {
+      return finish({ broken: true });
+    } else if (statement.kind === 'continue') {
+      return finish({ continued: true });
     } else if (statement.kind === 'return') {
       const result = { returned: true, value: statement.expression ? evaluate(statement.expression, values, runtime) : undefined };
-      if (scoped) for (const name of declaredHere) values.delete(name);
-      return result;
+      return finish(result);
     } else if (statement.kind === 'print') runtime.output(formatValue(evaluate(statement.expression, values, runtime)));
     else evaluate(statement.expression, values, runtime);
   }
-  if (scoped) for (const name of declaredHere) values.delete(name);
-  return null;
+  return finish(null);
 }
 
 function definitionMaps(program) {

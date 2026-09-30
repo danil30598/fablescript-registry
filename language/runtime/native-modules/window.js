@@ -19,6 +19,7 @@ const WINDOW_MEMBERS = [
   { kind: 'function', name: 'sprite', parameters: ['file', 'x', 'y', 'width', 'height', 'angle'], detail: 'Нарисовать повёрнутый спрайт' },
   { kind: 'function', name: 'show', parameters: [], detail: 'Открыть окно' },
   { kind: 'function', name: 'update', parameters: ['fps'], detail: 'Показать новый кадр и ограничить FPS' },
+  { kind: 'function', name: 'deltaTime', parameters: [], detail: 'Время предыдущего кадра в секундах' },
   { kind: 'function', name: 'isOpen', parameters: [], detail: 'Проверить, открыто ли окно' },
   { kind: 'function', name: 'keyDown', parameters: ['key'], detail: 'Проверить, нажата ли клавиша' },
   { kind: 'function', name: 'keyPressed', parameters: ['key'], detail: 'Один раз определить нажатие клавиши' },
@@ -148,11 +149,13 @@ function createWindowModule(options = {}) {
   const readFile = options.readFile || ((filePath) => fs.readFileSync(filePath, 'utf8'));
   const fileExists = options.fileExists || fs.existsSync;
   const sleep = options.sleep || ((milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds));
+  const now = options.now || Date.now;
   const scene = { width: 800, height: 600, title: 'FableScript', background: '#20242b', items: [], commands: [] };
   let scenePath = null;
   let statePath = null;
   let nativeChild = null;
   let lastFrameAt = 0;
+  let lastDeltaTime = 0;
   let commandId = 0;
   const observedEvents = new Map();
 
@@ -242,7 +245,8 @@ function createWindowModule(options = {}) {
         writeScene();
         scene.commands = [];
         nativeChild = openNative(scenePath);
-        lastFrameAt = Date.now();
+        lastFrameAt = now();
+        lastDeltaTime = 0;
         return true;
       }
       const filePath = path.join(temporaryDirectory, `fablescript-window-${randomUUID()}.html`);
@@ -256,11 +260,14 @@ function createWindowModule(options = {}) {
       writeScene();
       scene.commands = [];
       const frameTime = 1000 / frameRate;
-      const remaining = frameTime - (Date.now() - lastFrameAt);
+      const remaining = frameTime - (now() - lastFrameAt);
       if (remaining > 0) sleep(remaining);
-      lastFrameAt = Date.now();
+      const frameEndedAt = now();
+      lastDeltaTime = Math.min(Math.max((frameEndedAt - lastFrameAt) / 1000, 0), 0.25);
+      lastFrameAt = frameEndedAt;
       return true;
     },
+    deltaTime() { return lastDeltaTime; },
     isOpen() { return Boolean(readState().open); },
     keyDown(key) {
       if (typeof key !== 'string') throw new Error('Имя клавиши должно быть строкой.');
