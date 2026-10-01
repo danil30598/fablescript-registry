@@ -28,7 +28,7 @@ while window.isOpen() {
         window.text(score, 390, 230, 24, "#ffca3a")
         window.text("Пробел — заново, Escape — выход", 205, 290, 22, "#b8c4d6")
 
-        if window.keyPressed("space") {
+        if window.keyPressed("space") or window.keyDown("space") {
             playerX = 365.0
             enemyX = random.float(20, 720)
             enemyY = -80.0
@@ -73,3 +73,5 @@ while window.isOpen() {
     window.rect(enemyX, enemyY, 60, 60, "#ff595e")
     window.update(60)
 }
+
+window.close()

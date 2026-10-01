@@ -11,8 +11,21 @@
       }
     },
     "window": {
-      "latest": "1.1.0",
+      "latest": "1.1.1",
       "versions": {
+        "1.1.1": {
+          "kind": "native",
+          "platforms": {
+            "win32-x64": {
+              "url": "./window/window-runtime-1.1.1-win32-x64.zip",
+              "sha256": "35f2725ad3406c93745c48e66cb49123075416c2b327afea5eedaa45e86f1e23",
+              "entry": {
+                "host": "window-host.py",
+                "python": "python-win-x64/pythonw.exe"
+              }
+            }
+          }
+        },
         "1.1.0": {
           "kind": "native",
           "platforms": {

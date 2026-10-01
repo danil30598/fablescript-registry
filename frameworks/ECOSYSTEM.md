@@ -30,9 +30,9 @@ window.text("Hello!", 60, 350, 38, "white")
 window.show()
 ```
 
-Версия 1.1 добавляет `sprite`, `playSound`, `playMusic`, события `keyPressed`/`keyReleased` и `mousePressed`/`mouseReleased`, а также `collides`, `circlesCollide` и `pointInside`.
+Версия 1.1 добавляет `sprite`, `playSound`, `playMusic`, события `keyPressed`/`keyReleased` и `mousePressed`/`mouseReleased`, а также `collides`, `circlesCollide` и `pointInside`. В версии 1.1.1 появилась `close`, которая корректно закрывает нативное окно из программы.
 
-Экспортируемые функции: `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `show`, `update`, `isOpen`, `keyDown`, `mouseX`, `mouseY`, `mouseDown`.
+Экспортируемые функции: `create`, `title`, `background`, `rect`, `circle`, `line`, `text`, `image`, `sprite`, `show`, `close`, `update`, `deltaTime`, `isOpen`, `keyDown`, `keyPressed`, `keyReleased`, `mouseX`, `mouseY`, `mouseDown`, `mousePressed`, `mouseReleased`, `collides`, `circlesCollide`, `pointInside`, `playSound`, `stopSounds`, `playMusic`, `stopMusic`.
 
 ## Пакеты
 

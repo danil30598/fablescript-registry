@@ -161,6 +161,10 @@ def main(scene_path):
             except OSError:
                 pass
 
+            if scene.get("closeRequested", False):
+                running = False
+                break
+
             pygame.display.set_caption(str(scene.get("title", "FableScript")))
             process_commands()
             screen.fill(color(pygame, scene.get("background", "black")))

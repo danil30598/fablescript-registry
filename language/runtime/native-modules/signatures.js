@@ -19,6 +19,7 @@ const BUILTIN_RETURN_TYPES = {
     image: 'any',
     sprite: 'any',
     show: 'any',
+    close: 'bool',
     update: 'any',
     deltaTime: 'float',
     isOpen: 'bool',

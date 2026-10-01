@@ -16,6 +16,7 @@ assert.equal(findPythonw({
 let writtenPath = null;
 let writtenScene = null;
 let openedPath = null;
+let nativeKilled = false;
 const times = [1000, 1010, 1017];
 const inputState = {
   open: true,
@@ -37,7 +38,7 @@ const graphics = createWindowModule({
   fileExists(filePath) { return filePath.endsWith('.state.json') || /player\.png|jump\.wav|music\.ogg/.test(filePath); },
   sleep() {},
   now() { return times.shift(); },
-  openNative(filePath) { openedPath = filePath; return {}; },
+  openNative(filePath) { openedPath = filePath; return { kill() { nativeKilled = true; } }; },
 });
 
 graphics.create(640, 480, 'Test <window>');
@@ -85,6 +86,9 @@ assert.equal(graphics.circlesCollide(0, 0, 10, 15, 0, 10), true);
 assert.equal(graphics.pointInside(5, 5, 0, 0, 10, 10), true);
 assert.equal(graphics.update(60), true);
 assert.equal(graphics.deltaTime(), 0.017);
+assert.equal(graphics.close(), true);
+assert.equal(JSON.parse(writtenScene).closeRequested, true);
+assert.equal(nativeKilled, true);
 assert.throws(() => graphics.image('missing.png', 0, 0, 10, 10), /Не найден файл/);
 assert.throws(() => graphics.circle(0, 0, -1, 'red'), /положительным числом/);
 

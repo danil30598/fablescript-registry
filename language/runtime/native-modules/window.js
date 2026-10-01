@@ -18,6 +18,7 @@ const WINDOW_MEMBERS = [
   { kind: 'function', name: 'image', parameters: ['file', 'x', 'y', 'width', 'height'], detail: 'Нарисовать изображение из файла' },
   { kind: 'function', name: 'sprite', parameters: ['file', 'x', 'y', 'width', 'height', 'angle'], detail: 'Нарисовать повёрнутый спрайт' },
   { kind: 'function', name: 'show', parameters: [], detail: 'Открыть окно' },
+  { kind: 'function', name: 'close', parameters: [], detail: 'Закрыть окно' },
   { kind: 'function', name: 'update', parameters: ['fps'], detail: 'Показать новый кадр и ограничить FPS' },
   { kind: 'function', name: 'deltaTime', parameters: [], detail: 'Время предыдущего кадра в секундах' },
   { kind: 'function', name: 'isOpen', parameters: [], detail: 'Проверить, открыто ли окно' },
@@ -150,7 +151,7 @@ function createWindowModule(options = {}) {
   const fileExists = options.fileExists || fs.existsSync;
   const sleep = options.sleep || ((milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds));
   const now = options.now || Date.now;
-  const scene = { width: 800, height: 600, title: 'FableScript', background: '#20242b', items: [], commands: [] };
+  const scene = { width: 800, height: 600, title: 'FableScript', background: '#20242b', items: [], commands: [], closeRequested: false };
   let scenePath = null;
   let statePath = null;
   let nativeChild = null;
@@ -208,6 +209,7 @@ function createWindowModule(options = {}) {
       scene.title = title;
       scene.items = [];
       scene.commands = [];
+      scene.closeRequested = false;
     },
     title(value) {
       if (typeof value !== 'string') throw new Error('Название окна должно быть строкой.');
@@ -242,6 +244,7 @@ function createWindowModule(options = {}) {
         if (scenePath && readState().open) return true;
         scenePath = path.join(temporaryDirectory, `fablescript-window-${randomUUID()}.json`);
         statePath = `${scenePath}.state.json`;
+        scene.closeRequested = false;
         writeScene();
         scene.commands = [];
         nativeChild = openNative(scenePath);
@@ -252,6 +255,24 @@ function createWindowModule(options = {}) {
       const filePath = path.join(temporaryDirectory, `fablescript-window-${randomUUID()}.html`);
       writeFile(filePath, htmlFor(scene));
       openExternal(filePath);
+      return true;
+    },
+    close() {
+      if (!scenePath || !readState().open) {
+        nativeChild = null;
+        return true;
+      }
+      scene.closeRequested = true;
+      writeScene();
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        if (!readState().open) {
+          nativeChild = null;
+          return true;
+        }
+        sleep(10);
+      }
+      if (nativeChild && typeof nativeChild.kill === 'function') nativeChild.kill();
+      nativeChild = null;
       return true;
     },
     update(fps) {
