@@ -10,6 +10,7 @@ const runtimePath = fs.existsSync(path.join(packagedRuntime, 'engine.js'))
   ? packagedRuntime
   : developmentRuntime;
 const { FableError, parse, run, validate } = require(path.join(runtimePath, 'engine.js'));
+const { buildPortable } = require(path.join(runtimePath, 'builder.js'));
 const { builtinModules, createModuleLoader, findProjectDir, globalModulesDir } = require(path.join(runtimePath, 'module-loader.js'));
 const { installPackage } = require(path.join(runtimePath, 'package-manager.js'));
 
@@ -149,6 +150,26 @@ function activate(context) {
     try {
       const result = await installPackage(packageName, { projectDir, registryUrl });
       void vscode.window.showInformationMessage(`Установлен ${result.name}@${result.version}.`);
+    } catch (error) {
+      void vscode.window.showErrorMessage(`FableScript: ${error.message}`);
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('fablescript.buildFile', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'fablescript' || editor.document.isUntitled) {
+      void vscode.window.showErrorMessage('Откройте сохранённый файл FableScript для сборки.');
+      return;
+    }
+    if (editor.document.isDirty) await editor.document.save();
+    try {
+      const result = await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'Сборка FableScript .exe',
+        cancellable: false,
+      }, async () => buildPortable(editor.document.uri.fsPath));
+      const action = await vscode.window.showInformationMessage(`Собрано: ${result.launcherPath}`, 'Открыть папку');
+      if (action === 'Открыть папку') await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(result.launcherPath));
     } catch (error) {
       void vscode.window.showErrorMessage(`FableScript: ${error.message}`);
     }

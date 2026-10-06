@@ -1,0 +1,8 @@
+import file
+
+file.write("data/save.txt", "Счёт: 10")
+file.append("data/save.txt", "\nУровень: 2")
+
+if file.exists("data/save.txt") {
+    print(file.read("data/save.txt"))
+}

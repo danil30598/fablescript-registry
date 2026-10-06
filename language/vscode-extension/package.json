@@ -2,7 +2,7 @@
   "name": "fablescript",
   "displayName": "FableScript",
   "description": "Поддержка экспериментального языка FableScript",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "publisher": "fablescript",
   "engines": {
     "vscode": "^1.85.0"
@@ -16,6 +16,7 @@
   "activationEvents": [
     "onLanguage:fablescript",
     "onCommand:fablescript.runFile",
+    "onCommand:fablescript.buildFile",
     "onCommand:fablescript.installPackage"
   ],
   "main": "./extension.js",
@@ -44,6 +45,11 @@
       {
         "command": "fablescript.installPackage",
         "title": "FableScript: Установить пакет"
+      },
+      {
+        "command": "fablescript.buildFile",
+        "title": "FableScript: Собрать переносимую программу",
+        "icon": "$(package)"
       }
     ],
     "keybindings": [
@@ -94,6 +100,11 @@
           "command": "fablescript.runFile",
           "when": "editorLangId == fablescript",
           "group": "navigation"
+        },
+        {
+          "command": "fablescript.buildFile",
+          "when": "editorLangId == fablescript",
+          "group": "navigation@2"
         }
       ]
     }

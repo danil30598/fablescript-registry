@@ -10,7 +10,30 @@
 
 | Модуль | Назначение | Установка |
 | --- | --- | --- |
-| `window` | Графическое окно, фигуры, линии, изображения и ввод | `fable install window` |
+| `file` | Чтение и запись текстовых файлов | Входит в язык |
+| `random` | Случайные числа, выбор элементов и вероятности | Входит в язык |
+| `window` | Графическое окно, фигуры, изображения, звук и ввод | `fable install window` |
+
+### file
+
+```fable
+import file
+
+file.write("save.txt", "score=10")
+print(file.read("save.txt"))
+```
+
+Экспортируемые функции: `read`, `write`, `append`, `exists`.
+
+### random
+
+```fable
+import random
+
+print(random.int(1, 6))
+```
+
+Экспортируемые функции: `seed`, `int`, `float`, `choice`, `chance`.
 
 ### window
 

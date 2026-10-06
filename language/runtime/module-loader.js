@@ -3,10 +3,12 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { FILE_MEMBERS, createFileModule } = require('./native-modules/file');
 const { RANDOM_MEMBERS, createRandomModule } = require('./native-modules/random');
 const { WINDOW_MEMBERS, createWindowModule } = require('./native-modules/window');
 
 const BUILTIN_MODULES = [
+  { name: 'file', detail: 'Чтение и запись текстовых файлов', members: FILE_MEMBERS },
   { name: 'random', detail: 'Случайные числа и выбор элементов', members: RANDOM_MEMBERS },
   { name: 'window', detail: 'Графика FableScript — установите: fable install window', members: WINDOW_MEMBERS },
 ];
@@ -62,6 +64,9 @@ function findNativePackage(name, projectDir) {
 function createModuleLoader(entryFilePath) {
   const projectDir = findProjectDir(entryFilePath);
   return (name, importerPath) => {
+    if (name === 'file') {
+      return { filePath: `native:file:${path.dirname(importerPath)}`, nativeExports: createFileModule({ baseDirectory: path.dirname(importerPath) }), nativeMembers: FILE_MEMBERS };
+    }
     if (name === 'random') {
       return { filePath: 'native:random', nativeExports: createRandomModule(), nativeMembers: RANDOM_MEMBERS };
     }

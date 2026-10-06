@@ -1,6 +1,12 @@
 'use strict';
 
 const BUILTIN_RETURN_TYPES = {
+  file: {
+    read: 'string',
+    write: 'bool',
+    append: 'bool',
+    exists: 'bool',
+  },
   random: {
     seed: 'any',
     int: 'int',

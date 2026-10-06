@@ -5,12 +5,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { FableError, run } = require('./engine');
+const { buildPortable } = require('./builder');
 const { createModuleLoader, findConfiguredProjectDir, globalModulesDir } = require('./module-loader');
 const { installPackage } = require('./package-manager');
 
 function usage() {
   console.error('Использование:');
   console.error('  fable run <файл.fable>');
+  console.error('  fable build <файл.fable> [--output <папка>] [--name <имя>]');
   console.error('  fable install <пакет> [--local] [--registry <URL>]');
 }
 
@@ -29,6 +31,23 @@ async function main() {
       registryUrl: registryIndex >= 0 ? options[registryIndex + 1] : undefined,
     });
     console.log(`Установлен ${result.name}@${result.version} (${localInstall ? 'в проект' : 'глобально'}): ${result.modulePath}`);
+    return;
+  }
+  if (command === 'build' && argument) {
+    const optionValue = (name) => {
+      const index = options.indexOf(name);
+      if (index < 0) return undefined;
+      if (!options[index + 1]) throw new Error(`После ${name} нужно указать значение.`);
+      return options[index + 1];
+    };
+    const result = buildPortable(argument, {
+      outputDirectory: optionValue('--output'),
+      name: optionValue('--name'),
+      nodeExecutable: optionValue('--node'),
+    });
+    console.log(`Собрано: ${result.outputDirectory}`);
+    console.log(`Запуск: ${result.launcherPath}`);
+    console.log('Передавайте получателю всю папку сборки. Node.js устанавливать не нужно.');
     return;
   }
   if (command !== 'run' || !argument) {

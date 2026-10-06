@@ -13,7 +13,9 @@ FableScript — экспериментальный язык для обучен�
 - Понятные ошибки с именем файла, строкой и столбцом.
 - Пакет `window` с нативным окном, игровым циклом, вводом, спрайтами, звуком и столкновениями.
 - Встроенный модуль `random` для случайных чисел, выбора элементов и вероятностей.
+- Встроенный модуль `file` для чтения, записи и проверки текстовых файлов.
 - Управление циклами с помощью `break` и `continue`.
+- Сборка проекта в переносимую папку со своим `node.exe`.
 
 ## Запуск из командной строки
 
@@ -38,7 +40,7 @@ node .\runtime\cli.js run .\examples\hello.fable
 pwsh -NoProfile -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.36.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.37.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
@@ -207,6 +209,35 @@ pwsh -NoProfile -File .\tools\package-window-runtime.ps1
 Скрипт загружает закреплённые версии Python и Pygame с официальных сайтов и проверяет их SHA-256 перед упаковкой.
 
 Публичный репозиторий: [danil30598/fablescript-registry](https://github.com/danil30598/fablescript-registry). Исходники языка и расширение находятся в `language`, реестр пакетов и описание экосистемы — в `frameworks`. Тестовый пакет устанавливается командой `fable install greetings`, пример его использования находится в `examples/packages/main.fable`.
+
+## Работа с файлами
+
+Модуль `file` входит в язык и не требует установки. Относительные пути считаются от папки запускаемого `.fable`:
+
+```fable
+import file
+
+file.write("data/save.txt", "Счёт: 10")
+file.append("data/save.txt", "\nУровень: 2")
+
+if file.exists("data/save.txt") {
+    print(file.read("data/save.txt"))
+}
+```
+
+Полный пример находится в `examples/files.fable`.
+
+## Переносимая сборка
+
+На Windows программу можно собрать вместе с её интерпретатором и локальными пакетами:
+
+```powershell
+fable build .\examples\dodge-game.fable --name DodgeGame --output .\dist\DodgeGame
+```
+
+То же действие доступно в палитре команд VS Code: `FableScript: Собрать переносимую программу`.
+
+Сборка содержит `DodgeGame.exe` — подписанный исполняемый файл Node.js, исходники программы и файл запуска `DodgeGame.cmd`. Запускайте `DodgeGame.cmd`: он передаёт встроенному `.exe` нужный файл программы. Отдельно устанавливать Node.js, FableScript, Python или Pygame получателю не требуется. Передавать нужно всю папку `dist\DodgeGame`, поскольку один `.exe` без остальных файлов работать не будет.
 
 ## Структура
 
