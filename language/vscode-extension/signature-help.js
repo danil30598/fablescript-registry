@@ -8,6 +8,90 @@ function callableBefore(source, offset) {
     : { receiver: null, name: match[1] };
 }
 
+function activeParameterFromText(source) {
+  const tokens = [];
+  const closing = [];
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (character === '\n') lineComment = false;
+      continue;
+    }
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '/' && next === '/') {
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      if (closing.length === 0) tokens.push({ type: 'atom' });
+      quote = character;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') {
+      if (closing.length === 0) tokens.push({ type: 'nested' });
+      closing.push(character === '(' ? ')' : character === '[' ? ']' : '}');
+      continue;
+    }
+    if (character === ')' || character === ']' || character === '}') {
+      if (closing.at(-1) === character) closing.pop();
+      continue;
+    }
+    if (closing.length > 0 || /\s/.test(character)) continue;
+    if (character === ',') {
+      tokens.push({ type: 'comma' });
+      continue;
+    }
+    const identifier = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
+    if (identifier) {
+      tokens.push({ type: ['and', 'or', 'not'].includes(identifier) ? 'operator' : 'atom', value: identifier });
+      index += identifier.length - 1;
+      continue;
+    }
+    const number = source.slice(index).match(/^\d+(?:\.\d+)?/)?.[0];
+    if (number) {
+      tokens.push({ type: 'atom' });
+      index += number.length - 1;
+      continue;
+    }
+    if (character === '.') tokens.push({ type: 'dot' });
+    else if ('+-*/%<>=!'.includes(character)) {
+      tokens.push({ type: 'operator', value: character });
+      if ('=<>!'.includes(character) && next === '=') index += 1;
+    }
+  }
+
+  let activeParameter = 0;
+  let expectingOperand = true;
+  for (const token of tokens) {
+    if (token.type === 'comma') {
+      activeParameter += 1;
+      expectingOperand = true;
+    } else if (token.type === 'dot') {
+      expectingOperand = true;
+    } else if (token.type === 'operator') {
+      if (token.value === 'not' && !expectingOperand) activeParameter += 1;
+      expectingOperand = true;
+    } else if (token.type === 'nested') {
+      if (expectingOperand) expectingOperand = false;
+    } else {
+      if (!expectingOperand) activeParameter += 1;
+      expectingOperand = false;
+    }
+  }
+  return activeParameter;
+}
+
 function findActiveCall(source, offset = source.length) {
   const stack = [];
   let quote = null;
@@ -41,7 +125,7 @@ function findActiveCall(source, offset = source.length) {
     if (character === '(') {
       const callable = callableBefore(source, index);
       stack.push(callable
-        ? { type: 'call', closing: ')', ...callable, activeParameter: 0 }
+        ? { type: 'call', closing: ')', ...callable, openOffset: index, activeParameter: 0 }
         : { type: 'group', closing: ')' });
       continue;
     }
@@ -62,7 +146,12 @@ function findActiveCall(source, offset = source.length) {
   }
 
   for (let index = stack.length - 1; index >= 0; index -= 1) {
-    if (stack[index].type === 'call') return stack[index];
+    if (stack[index].type === 'call') {
+      const result = { ...stack[index] };
+      result.activeParameter = activeParameterFromText(source.slice(result.openOffset + 1, offset));
+      delete result.openOffset;
+      return result;
+    }
   }
   return null;
 }
@@ -140,6 +229,7 @@ function findSourceCallable(source, name) {
 }
 
 module.exports = {
+  activeParameterFromText,
   callableParameters,
   findActiveCall,
   findSourceCallable,

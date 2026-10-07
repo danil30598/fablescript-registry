@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  activeParameterFromText,
   callableParameters,
   findActiveCall,
   findSourceCallable,
@@ -37,6 +38,13 @@ test('ignores calls inside comments and returns the surrounding call', () => {
   const source = 'print(1, // fake(1, 2)\n 2';
   assert.equal(findActiveCall(source).name, 'print');
   assert.equal(findActiveCall(source).activeParameter, 1);
+});
+
+test('tracks arguments separated by spaces as allowed by FableScript', () => {
+  assert.equal(findActiveCall('sum(2 ').activeParameter, 0);
+  assert.equal(findActiveCall('sum(2 3').activeParameter, 1);
+  assert.equal(findActiveCall('sum(number - 1 other').activeParameter, 1);
+  assert.equal(activeParameterFromText('value and not ready next'), 1);
 });
 
 test('formats required and optional signatures', () => {
