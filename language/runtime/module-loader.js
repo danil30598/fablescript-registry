@@ -93,14 +93,15 @@ function createModuleLoader(entryFilePath) {
         nativeMembers: WINDOW_MEMBERS,
       };
     }
+    const moduleFileName = name.toLowerCase().endsWith('.fable') ? name : `${name}.fable`;
     const candidates = [
-      path.resolve(path.dirname(importerPath), `${name}.fable`),
-      path.resolve(projectDir, 'fable_modules', `${name}.fable`),
-      path.resolve(globalModulesDir(), `${name}.fable`),
+      path.resolve(path.dirname(importerPath), moduleFileName),
+      path.resolve(projectDir, 'fable_modules', moduleFileName),
+      path.resolve(globalModulesDir(), moduleFileName),
     ];
     const modulePath = candidates.find((candidate) => fs.existsSync(candidate));
     if (!modulePath) {
-      throw new Error(`файл ${name}.fable не найден рядом с программой, в fable_modules или среди глобальных пакетов`);
+      throw new Error(`файл ${moduleFileName} не найден рядом с программой, в fable_modules или среди глобальных пакетов`);
     }
     return { source: fs.readFileSync(modulePath, 'utf8'), filePath: modulePath };
   };

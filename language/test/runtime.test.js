@@ -364,6 +364,45 @@ run(`
 assert.deepEqual(moduleOutput, ['3.14', '10']);
 assert.equal(moduleLoads, 1);
 
+const executableFiles = new Map([
+  ['C:\\project\\IDchecker.fable', `
+    print("checker loaded")
+    func check(string id) {
+      return id == "FS-42"
+    }
+  `],
+]);
+const executeOutput = [];
+run(`
+  execute("IDchecker.fable")
+  print(execute("IDchecker.fable", "check", ["FS-42"]))
+`, (value) => executeOutput.push(value), {
+  filePath: 'C:\\project\\main.fable',
+  loadModule(name) {
+    const filePath = `C:\\project\\${name}`;
+    if (!executableFiles.has(filePath)) throw new Error('файл не найден');
+    return { source: executableFiles.get(filePath), filePath };
+  },
+});
+assert.deepEqual(executeOutput, ['checker loaded', 'checker loaded', 'true']);
+assert.match(validate('execute()')[0].message, /от одного до трёх/);
+assert.match(validate('execute(123)')[0].message, /тип string/);
+assert.match(validate('execute("code.fable", "run", 123)')[0].message, /передать списком/);
+assert.throws(() => run('execute("IDchecker.fable", "missing")', () => {}, {
+  filePath: 'C:\\project\\main.fable',
+  loadModule(name) {
+    const filePath = `C:\\project\\${name}`;
+    return { source: executableFiles.get(filePath), filePath };
+  },
+}), /нет экспортируемой функции/);
+assert.throws(() => run('execute("IDchecker.fable", "check", [123])', () => {}, {
+  filePath: 'C:\\project\\main.fable',
+  loadModule(name) {
+    const filePath = `C:\\project\\${name}`;
+    return { source: executableFiles.get(filePath), filePath };
+  },
+}), /должен иметь тип string/);
+
 assert.throws(
   () => run('import missing', () => {}, {
     filePath: 'C:\\project\\main.fable',

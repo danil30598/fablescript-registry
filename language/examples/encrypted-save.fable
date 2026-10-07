@@ -1,0 +1,12 @@
+import file
+import json
+
+var player = {name: "Alex", score: 42, items: ["sword", "potion"]}
+var password = "fable-secret"
+
+file.write("save.json", json.pretty(player), "rans#m", password)
+string encryptedSave = file.read("save.json", "rans#m", password)
+var loadedPlayer = json.parse(encryptedSave)
+
+print(loadedPlayer.name)
+print(loadedPlayer.score)

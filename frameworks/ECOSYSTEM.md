@@ -25,6 +25,13 @@ file.write("save.txt", "score=10")
 print(file.read("save.txt"))
 ```
 
+Защищённая запись RANS#M1 использует AES-256-GCM и пароль:
+
+```fable
+file.write("save.json", "secret", "rans#m", "strong-password")
+print(file.read("save.json", "rans#m", "strong-password"))
+```
+
 Экспортируемые функции: `read`, `write`, `append`, `exists`.
 
 ### json

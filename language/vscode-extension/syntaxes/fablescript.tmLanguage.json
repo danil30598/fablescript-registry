@@ -47,7 +47,7 @@
     },
     "keywords": {
       "patterns": [
-        { "name": "support.function.fablescript", "match": "\\b(print|input|int|float|string|bool|range|__init)\\b(?=\\s*\\()" },
+        { "name": "support.function.fablescript", "match": "\\b(print|input|int|float|string|bool|range|execute|__init)\\b(?=\\s*\\()" },
         { "name": "variable.language.fablescript", "match": "\\bself\\b" },
         { "name": "storage.type.fablescript", "match": "\\b(var|int|float|string|bool|list|any)\\b" },
         { "name": "keyword.control.fablescript", "match": "\\b(if|else|try|catch|for|in|while|repeat|times|break|continue|return|import|class|func|and|or|not)\\b" },

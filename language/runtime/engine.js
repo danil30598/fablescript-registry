@@ -9,6 +9,7 @@ const BUILTIN_FUNCTIONS = new Map([
   ['string', 'string'],
   ['bool', 'bool'],
   ['range', { kind: 'list', element: 'int' }],
+  ['execute', 'any'],
 ]);
 
 class FableError extends Error {
@@ -713,6 +714,20 @@ function typeOf(expression, symbols, context) {
       }
       return BUILTIN_FUNCTIONS.get('range');
     }
+    if (expression.name === 'execute') {
+      if (expression.args.length < 1 || expression.args.length > 3) throw new FableError('execute ожидает от одного до трёх аргументов.', expression.line, expression.column);
+      const fileType = typeOf(expression.args[0], symbols, context);
+      if (fileType !== 'string' && fileType !== 'any') throw new FableError('Путь execute должен иметь тип string.', expression.args[0].line, expression.args[0].column);
+      if (expression.args.length >= 2) {
+        const functionType = typeOf(expression.args[1], symbols, context);
+        if (functionType !== 'string' && functionType !== 'any') throw new FableError('Имя функции execute должно иметь тип string.', expression.args[1].line, expression.args[1].column);
+      }
+      if (expression.args.length === 3) {
+        const argumentsType = typeOf(expression.args[2], symbols, context);
+        if (argumentsType !== 'any' && (typeof argumentsType === 'string' || argumentsType.kind !== 'list')) throw new FableError('Аргументы функции execute нужно передать списком.', expression.args[2].line, expression.args[2].column);
+      }
+      return 'any';
+    }
     if (BUILTIN_FUNCTIONS.has(expression.name)) {
       if (expression.args.length !== 1) throw new FableError(`${expression.name} ожидает ровно один аргумент.`, expression.line, expression.column);
       typeOf(expression.args[0], symbols, context);
@@ -1039,6 +1054,34 @@ function evaluate(expression, values, runtime) {
       }
       return values;
     }
+    if (expression.name === 'execute') {
+      const [fileName, functionName, functionArguments = []] = argumentValues;
+      if (typeof fileName !== 'string' || !fileName.trim()) throw new FableError('execute ожидает непустой путь к файлу.', expression.line, expression.column);
+      if (functionName !== undefined && (typeof functionName !== 'string' || !functionName.trim())) throw new FableError('Имя функции execute должно быть непустой строкой.', expression.line, expression.column);
+      if (!Array.isArray(functionArguments)) throw new FableError('Аргументы функции execute нужно передать списком.', expression.line, expression.column);
+      if (!runtime.loadModule) throw new FableError('execute недоступен: загрузчик файлов не настроен.', expression.line, expression.column);
+      let loaded;
+      try {
+        loaded = runtime.loadModule(fileName, runtime.currentFile);
+      } catch (error) {
+        throw new FableError(`execute не смог открыть «${fileName}»: ${error.message}`, expression.line, expression.column);
+      }
+      if (!loaded || typeof loaded.source !== 'string' || !loaded.filePath) throw new FableError(`execute не может запустить «${fileName}».`, expression.line, expression.column);
+      const namespace = executeModuleSource(loaded.source, loaded.filePath, runtime, false);
+      if (functionName === undefined) return true;
+      const fn = namespace.__functions.get(functionName);
+      if (!fn) throw new FableError(`В файле «${fileName}» нет экспортируемой функции «${functionName}».`, expression.line, expression.column);
+      if (functionArguments.length !== fn.parameters.length) throw new FableError(`Функция «${functionName}» ожидает ${fn.parameters.length} аргументов, получено ${functionArguments.length}.`, expression.line, expression.column);
+      fn.parameters.forEach((parameter, index) => {
+        const value = functionArguments[index];
+        const matches = parameter.type === 'int' ? Number.isInteger(value)
+          : parameter.type === 'float' ? typeof value === 'number' && Number.isFinite(value)
+            : parameter.type === 'string' ? typeof value === 'string'
+              : parameter.type === 'bool' ? typeof value === 'boolean' : true;
+        if (!matches) throw new FableError(`Аргумент ${index + 1} функции «${functionName}» должен иметь тип ${parameter.type}.`, expression.line, expression.column);
+      });
+      return invokeFunctionNode(fn, functionArguments, runtime, undefined, namespace.__runtimeFunctions, namespace.__runtimeClasses);
+    }
     const fn = runtime.functions.get(expression.name);
     if (!fn) {
       const classNode = runtime.classes.get(expression.name);
@@ -1176,9 +1219,9 @@ function bindDefinitionValues(functions, classes, values) {
   }
 }
 
-function executeModuleSource(source, filePath, runtime) {
+function executeModuleSource(source, filePath, runtime, useCache = true) {
   const cacheKey = filePath || '<main>';
-  if (runtime.moduleCache.has(cacheKey)) return runtime.moduleCache.get(cacheKey);
+  if (useCache && runtime.moduleCache.has(cacheKey)) return runtime.moduleCache.get(cacheKey);
   if (runtime.loadingModules.has(cacheKey)) throw new FableError(`Циклический import: модуль «${filePath}» уже загружается.`, 1, 1);
   runtime.loadingModules.add(cacheKey);
 
@@ -1207,7 +1250,7 @@ function executeModuleSource(source, filePath, runtime) {
       __runtimeClasses: { value: classes, enumerable: false },
     });
     for (const [name, value] of values) if (!name.startsWith('_')) namespace[name] = value;
-    runtime.moduleCache.set(cacheKey, namespace);
+    if (useCache) runtime.moduleCache.set(cacheKey, namespace);
     return namespace;
   } catch (error) {
     if (error instanceof FableError && !error.filePath) error.filePath = filePath;

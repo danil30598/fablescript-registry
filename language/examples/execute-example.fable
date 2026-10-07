@@ -1,0 +1,7 @@
+var valid = execute("id-checker.fable", "check", ["FS-42"])
+
+if valid {
+    print("ID принят")
+} else {
+    print("ID отклонён")
+}

@@ -272,6 +272,7 @@ function activate(context) {
           snippet('repeat', 'repeat ${1:count} times {\n\t${0}\n}', 'Повторить блок заданное число раз'),
           snippet('for', 'for ${1:item} in ${2:collection} {\n\t${0}\n}', 'Перебрать список или ключи таблицы'),
           snippet('range', 'range(${1:start}, ${2:end}, ${3:step})', 'Создать диапазон целых чисел'),
+          snippet('execute', 'execute(${1:"script.fable"}, ${2:"function"}, [${3:arguments}])', 'Запустить другой файл FableScript'),
           snippet('break', 'break', 'Завершить текущий цикл'),
           snippet('continue', 'continue', 'Перейти к следующей итерации цикла'),
           snippet('func', 'func ${1:name}(${2:int value})\n{\n\t${0}\n}', 'Объявить функцию'),
