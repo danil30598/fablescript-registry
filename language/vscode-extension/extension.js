@@ -13,6 +13,32 @@ const { FableError, parse, run, validate } = require(path.join(runtimePath, 'eng
 const { buildPortable } = require(path.join(runtimePath, 'builder.js'));
 const { builtinModules, createModuleLoader, findProjectDir, globalModulesDir } = require(path.join(runtimePath, 'module-loader.js'));
 const { installPackage } = require(path.join(runtimePath, 'package-manager.js'));
+const {
+  callableParameters,
+  findActiveCall,
+  findSourceCallable,
+  parameterName,
+  signatureModels,
+} = require('./signature-help.js');
+
+const GLOBAL_SIGNATURES = {
+  print: signatureModels('print', { parameters: ['value'], detail: 'Вывести значение в консоль' }),
+  input: signatureModels('input', { parameters: [], optionalParameters: ['prompt'], detail: 'Прочитать строку из консоли' }),
+  int: signatureModels('int', { parameters: ['value'], detail: 'Преобразовать значение в целое число' }),
+  float: signatureModels('float', { parameters: ['value'], detail: 'Преобразовать значение в дробное число' }),
+  string: signatureModels('string', { parameters: ['value'], detail: 'Преобразовать значение в строку' }),
+  bool: signatureModels('bool', { parameters: ['value'], detail: 'Преобразовать значение в логическое значение' }),
+  range: [
+    ...signatureModels('range', { parameters: ['end'], detail: 'Целые числа от 0 до end, не включая end' }),
+    ...signatureModels('range', { parameters: ['start', 'end'], detail: 'Целые числа от start до end' }),
+    ...signatureModels('range', { parameters: ['start', 'end', 'step'], detail: 'Целые числа с указанным шагом' }),
+  ],
+  execute: [
+    ...signatureModels('execute', { parameters: ['file'], detail: 'Запустить файл FableScript' }),
+    ...signatureModels('execute', { parameters: ['file', 'function'], detail: 'Запустить функцию из файла FableScript' }),
+    ...signatureModels('execute', { parameters: ['file', 'function', 'arguments'], detail: 'Запустить функцию с аргументами из файла FableScript' }),
+  ],
+};
 
 function discoverModules(filePath) {
   const projectDir = findProjectDir(filePath);
@@ -45,6 +71,52 @@ function exportedMembers(modulePath) {
   } catch {
     return [];
   }
+}
+
+function signaturesForCall(document, call) {
+  const source = document.getText();
+  if (!call.receiver && GLOBAL_SIGNATURES[call.name]) return GLOBAL_SIGNATURES[call.name];
+
+  if (call.receiver && !document.isUntitled) {
+    const imported = new RegExp(`^\\s*import\\s+${call.receiver}\\s*$`, 'm').test(source);
+    if (imported) {
+      const module = discoverModules(document.uri.fsPath).find((candidate) => candidate.name === call.receiver);
+      const member = (module?.members || (module?.path ? exportedMembers(module.path) : []))
+        .find((candidate) => candidate.name === call.name && ['function', 'class'].includes(candidate.kind));
+      if (member) return signatureModels(`${call.receiver}.${call.name}`, member);
+    }
+  }
+
+  if (!call.receiver) {
+    try {
+      const member = parse(source)
+        .find((statement) => ['function', 'class'].includes(statement.kind) && statement.name === call.name);
+      if (member) return signatureModels(call.name, member);
+    } catch {
+      // Незаконченный вызов во время набора делает весь документ временно невалидным.
+    }
+  }
+
+  const sourceMember = findSourceCallable(source, call.name);
+  if (sourceMember) return signatureModels(call.receiver ? `${call.receiver}.${call.name}` : call.name, sourceMember);
+  if (call.receiver && call.name === 'add') return signatureModels(`${call.receiver}.add`, { parameters: ['value'], detail: 'Добавить значение в список' });
+  if (call.receiver && call.name === 'remove') return signatureModels(`${call.receiver}.remove`, { parameters: ['value'], detail: 'Удалить первое совпадающее значение' });
+  return [];
+}
+
+function vscodeSignatureHelp(models, activeParameter) {
+  if (models.length === 0) return null;
+  const help = new vscode.SignatureHelp();
+  help.signatures = models.map((model) => {
+    const information = new vscode.SignatureInformation(model.label, model.detail);
+    information.parameters = model.parameters.map((parameter) => new vscode.ParameterInformation(parameter));
+    return information;
+  });
+  const matchingIndex = models.findIndex((model) => model.parameters.length > activeParameter);
+  help.activeSignature = matchingIndex >= 0 ? matchingIndex : models.length - 1;
+  const parameterCount = models[help.activeSignature].parameters.length;
+  help.activeParameter = parameterCount === 0 ? 0 : Math.min(activeParameter, parameterCount - 1);
+  return help;
 }
 
 function activate(context) {
@@ -243,7 +315,7 @@ function activate(context) {
             const item = new vscode.CompletionItem(member.name, kind);
             item.detail = `${member.kind === 'class' ? 'Класс' : member.kind === 'function' ? 'Функция' : 'Переменная'} из ${moduleName}`;
             if (callable) {
-              const parameters = member.parameters || [];
+              const parameters = callableParameters(member).map(parameterName);
               const placeholders = parameters.map((parameter, index) => `\${${index + 1}:${parameter}}`).join(', ');
               item.insertText = new vscode.SnippetString(`${member.name}(${placeholders})`);
             }
@@ -312,7 +384,10 @@ function activate(context) {
         for (const name of declaredFunctions) {
           const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
           item.detail = 'Функция FableScript';
-          item.insertText = new vscode.SnippetString(`${name}($0)`);
+          const member = findSourceCallable(document.getText(), name);
+          const parameters = callableParameters(member).map(parameterName);
+          const placeholders = parameters.map((parameter, index) => `\${${index + 1}:${parameter}}`).join(', ');
+          item.insertText = new vscode.SnippetString(`${name}(${placeholders || '$0'})`);
           item.sortText = `2-${name}`;
           suggestions.push(item);
         }
@@ -322,7 +397,10 @@ function activate(context) {
         for (const name of declaredClasses) {
           const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Class);
           item.detail = 'Класс FableScript';
-          item.insertText = new vscode.SnippetString(`${name}($0)`);
+          const member = findSourceCallable(document.getText(), name);
+          const parameters = callableParameters(member).map(parameterName);
+          const placeholders = parameters.map((parameter, index) => `\${${index + 1}:${parameter}}`).join(', ');
+          item.insertText = new vscode.SnippetString(`${name}(${placeholders || '$0'})`);
           item.sortText = `2-${name}`;
           suggestions.push(item);
         }
@@ -330,6 +408,19 @@ function activate(context) {
       },
     },
     '.', ' ',
+  ));
+
+  context.subscriptions.push(vscode.languages.registerSignatureHelpProvider(
+    { language: 'fablescript', scheme: 'file' },
+    {
+      provideSignatureHelp(document, position) {
+        const offset = document.offsetAt(position);
+        const call = findActiveCall(document.getText(), offset);
+        if (!call) return null;
+        return vscodeSignatureHelp(signaturesForCall(document, call), call.activeParameter);
+      },
+    },
+    '(', ',',
   ));
 }
 
