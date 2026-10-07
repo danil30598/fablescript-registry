@@ -14,6 +14,13 @@ const BUILTIN_RETURN_TYPES = {
     choice: 'any',
     chance: 'bool',
   },
+  math: {
+    abs: 'float', min: 'float', max: 'float', round: 'int', floor: 'int', ceil: 'int',
+    sqrt: 'float', pow: 'float', sin: 'float', cos: 'float', tan: 'float',
+  },
+  json: {
+    parse: 'any', stringify: 'string', pretty: 'string',
+  },
   window: {
     create: 'any',
     title: 'any',
@@ -47,8 +54,16 @@ const BUILTIN_RETURN_TYPES = {
   },
 };
 
+const BUILTIN_MEMBER_TYPES = {
+  math: { PI: 'float', E: 'float' },
+};
+
 function builtinReturnType(moduleName, memberName) {
   return BUILTIN_RETURN_TYPES[moduleName]?.[memberName] || 'any';
 }
 
-module.exports = { BUILTIN_RETURN_TYPES, builtinReturnType };
+function builtinMemberType(moduleName, memberName) {
+  return BUILTIN_MEMBER_TYPES[moduleName]?.[memberName] || 'any';
+}
+
+module.exports = { BUILTIN_MEMBER_TYPES, BUILTIN_RETURN_TYPES, builtinMemberType, builtinReturnType };

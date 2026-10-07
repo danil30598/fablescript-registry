@@ -1,6 +1,14 @@
 'use strict';
 
-const { builtinReturnType } = require('./native-modules/signatures');
+const { builtinMemberType, builtinReturnType } = require('./native-modules/signatures');
+
+const BUILTIN_FUNCTIONS = new Map([
+  ['input', 'string'],
+  ['int', 'int'],
+  ['float', 'float'],
+  ['string', 'string'],
+  ['bool', 'bool'],
+]);
 
 class FableError extends Error {
   constructor(message, line, column) {
@@ -599,13 +607,15 @@ function typeOf(expression, symbols, context) {
   if (expression.kind === 'index') {
     const object = typeOf(expression.object, symbols, context);
     const index = typeOf(expression.index, symbols, context);
+    if (object === 'any') return 'any';
     if (typeof object === 'string' || object.kind !== 'list') throw new FableError('Индекс можно применять только к списку.', expression.line, expression.column);
     if (index !== 'int') throw new FableError('Индекс списка должен иметь тип int.', expression.line, expression.column);
     return object.element;
   }
   if (expression.kind === 'member') {
     const object = typeOf(expression.object, symbols, context);
-    if (typeof object !== 'string' && object.kind === 'module') return 'any';
+    if (object === 'any') return expression.name === 'len' ? 'int' : 'any';
+    if (typeof object !== 'string' && object.kind === 'module') return builtinMemberType(object.name, expression.name);
     if (expression.name === 'len' && (object === 'string' || (typeof object !== 'string' && (object.kind === 'list' || object.kind === 'table')))) return 'int';
     if (typeof object !== 'string' && object.kind === 'table') {
       if (!object.fields.has(expression.name)) throw new FableError(`В таблице нет ключа «${expression.name}».`, expression.line, expression.column);
@@ -619,6 +629,11 @@ function typeOf(expression, symbols, context) {
   }
   if (expression.kind === 'methodCall') {
     const object = typeOf(expression.object, symbols, context);
+    if (object === 'any' && ['add', 'remove'].includes(expression.name)) {
+      if (expression.args.length !== 1) throw new FableError(`Метод ${expression.name} ожидает один аргумент.`, expression.line, expression.column);
+      typeOf(expression.args[0], symbols, context);
+      return expression.name === 'remove' ? 'bool' : 'void';
+    }
     if (typeof object !== 'string' && object.kind === 'module') {
       for (const argument of expression.args) typeOf(argument, symbols, context);
       return builtinReturnType(object.name, expression.name);
@@ -650,6 +665,11 @@ function typeOf(expression, symbols, context) {
         if (promptType !== 'string' && promptType !== 'any') throw new FableError('Подсказка input должна иметь тип string.', expression.args[0].line, expression.args[0].column);
       }
       return 'string';
+    }
+    if (BUILTIN_FUNCTIONS.has(expression.name)) {
+      if (expression.args.length !== 1) throw new FableError(`${expression.name} ожидает ровно один аргумент.`, expression.line, expression.column);
+      typeOf(expression.args[0], symbols, context);
+      return BUILTIN_FUNCTIONS.get(expression.name);
     }
     const fn = context.functions.get(expression.name);
     if (!fn) {
@@ -812,7 +832,7 @@ function check(program) {
   const classes = new Map();
   for (const statement of program) {
     if (statement.kind !== 'class') continue;
-    if (statement.name === 'input') throw new FableError('Имя «input» зарезервировано встроенной функцией.', statement.line, statement.column);
+    if (BUILTIN_FUNCTIONS.has(statement.name)) throw new FableError(`Имя «${statement.name}» зарезервировано встроенной функцией.`, statement.line, statement.column);
     if (classes.has(statement.name)) throw new FableError(`Класс «${statement.name}» уже объявлен.`, statement.line, statement.column);
     const fields = new Map();
     for (const field of statement.fields) {
@@ -829,7 +849,7 @@ function check(program) {
   }
   for (const statement of program) {
     if (statement.kind !== 'function') continue;
-    if (statement.name === 'input') throw new FableError('Имя «input» зарезервировано встроенной функцией.', statement.line, statement.column);
+    if (BUILTIN_FUNCTIONS.has(statement.name)) throw new FableError(`Имя «${statement.name}» зарезервировано встроенной функцией.`, statement.line, statement.column);
     if (functions.has(statement.name)) throw new FableError(`Функция «${statement.name}» уже объявлена.`, statement.line, statement.column);
     functions.set(statement.name, {
       ...statement,
@@ -939,6 +959,26 @@ function evaluate(expression, values, runtime) {
   if (expression.kind === 'call') {
     const argumentValues = expression.args.map((argument) => evaluate(argument, values, runtime));
     if (expression.name === 'input') return runtime.input(argumentValues[0] ?? '');
+    if (expression.name === 'int') {
+      const value = Number(argumentValues[0]);
+      if ((typeof argumentValues[0] === 'string' && !argumentValues[0].trim()) || !Number.isFinite(value)) throw new FableError('int не может преобразовать значение в целое число.', expression.line, expression.column);
+      return Math.trunc(value);
+    }
+    if (expression.name === 'float') {
+      const value = Number(argumentValues[0]);
+      if ((typeof argumentValues[0] === 'string' && !argumentValues[0].trim()) || !Number.isFinite(value)) throw new FableError('float не может преобразовать значение в число.', expression.line, expression.column);
+      return value;
+    }
+    if (expression.name === 'string') return formatValue(argumentValues[0]);
+    if (expression.name === 'bool') {
+      const value = argumentValues[0];
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true') return true;
+        if (normalized === 'false' || normalized === '') return false;
+      }
+      return Boolean(value);
+    }
     const fn = runtime.functions.get(expression.name);
     if (!fn) {
       const classNode = runtime.classes.get(expression.name);

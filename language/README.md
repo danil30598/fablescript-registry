@@ -14,6 +14,8 @@ FableScript — экспериментальный язык для обучен�
 - Пакет `window` с нативным окном, игровым циклом, вводом, спрайтами, звуком и столкновениями.
 - Встроенный модуль `random` для случайных чисел, выбора элементов и вероятностей.
 - Встроенный модуль `file` для чтения, записи и проверки текстовых файлов.
+- Встроенные модули `math` и `json` для вычислений и обмена данными.
+- Преобразования типов `int()`, `float()`, `string()` и `bool()`.
 - Управление циклами с помощью `break` и `continue`.
 - Консольный ввод через `input()` и обработка ошибок через `try/catch`.
 - Сборка проекта в переносимую папку со своим `node.exe`.
@@ -41,24 +43,24 @@ node .\runtime\cli.js run .\examples\hello.fable
 pwsh -NoProfile -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.38.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.39.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
 ## Локальные модули
 
-Инструкция `import math` загружает файл `math.fable` из той же папки, что и запускаемый файл. Обращение к функциям, классам и переменным модуля выполняется через точку:
+Например, инструкция `import calculator` загружает файл `calculator.fable` из той же папки, что и запускаемый файл. Обращение к функциям, классам и переменным модуля выполняется через точку:
 
 ```fable
-import math
+import calculator
 
-print(math.add(2, 3))
-print(math.PI)
+print(calculator.add(2, 3))
+print(calculator.PI)
 ```
 
 Имена, начинающиеся с `_`, остаются внутренними для модуля. Пример находится в `examples/modules`.
 
-Если файла рядом нет, интерпретатор ищет установленный пакет `fable_modules/math.fable` в папке проекта.
+Если файла рядом нет, интерпретатор ищет установленный пакет `fable_modules/calculator.fable` в папке проекта.
 
 ## Пакеты из интернета
 
@@ -227,6 +229,35 @@ if file.exists("data/save.txt") {
 ```
 
 Полный пример находится в `examples/files.fable`.
+
+## Преобразования, математика и JSON
+
+Встроенные функции преобразуют значения между основными типами:
+
+```fable
+int age = int("18")
+float price = float("12.50")
+string message = "Возраст: " + string(age)
+bool enabled = bool("true")
+```
+
+Пустая строка в `bool()` даёт `false`, строки `"true"` и `"false"` распознаются явно. Непустые строки и коллекции считаются истинными. `int()` отбрасывает дробную часть и сообщает ошибку, если значение нельзя преобразовать в число.
+
+Модули `math` и `json` входят в язык и не требуют установки:
+
+```fable
+import math
+import json
+
+var player = {name: "Alex", score: math.pow(3, 2)}
+string saved = json.pretty(player)
+var loaded = json.parse(saved)
+
+print(loaded.name)
+print(math.sqrt(loaded.score))
+```
+
+`math` предоставляет `PI`, `E`, `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, `pow`, `sin`, `cos` и `tan`. В `json` доступны `parse`, `stringify` и `pretty`. Полный пример находится в `examples/data-tools.fable`.
 
 ## Ввод и обработка ошибок
 

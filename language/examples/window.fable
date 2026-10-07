@@ -1,0 +1,28 @@
+import window
+
+var x = 60
+var y = 170
+
+window.create(800, 520, "RANS#M")
+window.show()
+
+while window.isOpen() {
+    if window.keyDown("left") {
+        x = x - 5
+    }
+    if window.keyDown("right") {
+        x = x + 5
+    }
+    if window.keyDown("up") {
+        y = y - 5
+    }
+    if window.keyDown("down") {
+        y = y + 5
+    }
+
+    window.background("#18212f")
+    window.rect(x, y, 80, 80, "#4f8cff")
+    window.circle(600, 160, 70, "#ffca3a")
+    window.text("Двигай квадрат стрелками", 40, 40, 28, "white")
+    window.update(60)
+}

@@ -1,0 +1,27 @@
+import window
+
+var x = 100
+var y = 180
+
+window.create(800, 520, "FableScript Game Loop")
+window.show()
+
+while window.isOpen() {
+    if window.keyDown("left") {
+        x = x - 5
+    }
+    if window.keyDown("right") {
+        x = x + 5
+    }
+    if window.keyDown("up") {
+        y = y - 5
+    }
+    if window.keyDown("down") {
+        y = y + 5
+    }
+
+    window.background("#18212f")
+    window.rect(x, y, 70, 70, "#4f8cff")
+    window.text("Двигай квадрат стрелками", 24, 24, 24, "white")
+    window.update(60)
+}

@@ -9,9 +9,9 @@
 
 ## Расширение VS Code
 
-Готовый файл: [`language/build/fablescript-0.0.38.vsix`](./language/build/fablescript-0.0.38.vsix).
+Готовый файл: [`language/build/fablescript-0.0.39.vsix`](./language/build/fablescript-0.0.39.vsix).
 
-Расширение добавляет подсветку, диагностику, интерактивный ввод через `input()`, `try/catch`, запуск по `F6`, переносимую сборку и автодополнение. Встроены модули `random` и `file`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
+Расширение добавляет подсветку, диагностику, интерактивный ввод через `input()`, `try/catch`, запуск по `F6`, переносимую сборку и автодополнение. Встроены преобразования типов и модули `random`, `file`, `math`, `json`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
 
 ## Пакеты
 

@@ -19,6 +19,8 @@ if (process.platform === 'win32') {
     assert.equal(path.basename(result.executablePath), 'Portable-Test.exe');
     assert.equal(path.basename(result.launcherPath), 'Portable-Test.cmd');
     assert.equal(fs.existsSync(path.join(result.outputDirectory, 'app', 'runtime', 'native-modules', 'file.js')), true);
+    assert.equal(fs.existsSync(path.join(result.outputDirectory, 'app', 'runtime', 'native-modules', 'json.js')), true);
+    assert.equal(fs.existsSync(path.join(result.outputDirectory, 'app', 'runtime', 'native-modules', 'math.js')), true);
     assert.equal(fs.existsSync(path.join(result.outputDirectory, 'app', 'runtime', 'console-input.js')), true);
     const execution = spawnSync('cmd.exe', ['/d', '/c', result.launcherPath], { encoding: 'utf8', input: 'OK\n', windowsHide: true, timeout: 15000 });
     assert.equal(execution.status, 0, execution.error?.message || execution.stderr || `signal: ${execution.signal}`);

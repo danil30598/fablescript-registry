@@ -1,0 +1,15 @@
+import math
+import json
+
+int age = int("18")
+float price = float("12.50")
+print("Возраст: " + string(age))
+print("Цена: " + string(price))
+
+var player = {name: "Alex", score: math.pow(3, 2)}
+string saved = json.pretty(player)
+print(saved)
+
+var loaded = json.parse(saved)
+print("Игрок: " + loaded.name)
+print("Счёт: " + string(loaded.score))

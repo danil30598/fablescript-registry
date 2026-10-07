@@ -4,11 +4,15 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { FILE_MEMBERS, createFileModule } = require('./native-modules/file');
+const { JSON_MEMBERS, createJsonModule } = require('./native-modules/json');
+const { MATH_MEMBERS, createMathModule } = require('./native-modules/math');
 const { RANDOM_MEMBERS, createRandomModule } = require('./native-modules/random');
 const { WINDOW_MEMBERS, createWindowModule } = require('./native-modules/window');
 
 const BUILTIN_MODULES = [
   { name: 'file', detail: 'Чтение и запись текстовых файлов', members: FILE_MEMBERS },
+  { name: 'json', detail: 'Чтение и создание данных JSON', members: JSON_MEMBERS },
+  { name: 'math', detail: 'Математические функции и константы', members: MATH_MEMBERS },
   { name: 'random', detail: 'Случайные числа и выбор элементов', members: RANDOM_MEMBERS },
   { name: 'window', detail: 'Графика FableScript — установите: fable install window', members: WINDOW_MEMBERS },
 ];
@@ -66,6 +70,12 @@ function createModuleLoader(entryFilePath) {
   return (name, importerPath) => {
     if (name === 'file') {
       return { filePath: `native:file:${path.dirname(importerPath)}`, nativeExports: createFileModule({ baseDirectory: path.dirname(importerPath) }), nativeMembers: FILE_MEMBERS };
+    }
+    if (name === 'json') {
+      return { filePath: 'native:json', nativeExports: createJsonModule(), nativeMembers: JSON_MEMBERS };
+    }
+    if (name === 'math') {
+      return { filePath: 'native:math', nativeExports: createMathModule(), nativeMembers: MATH_MEMBERS };
     }
     if (name === 'random') {
       return { filePath: 'native:random', nativeExports: createRandomModule(), nativeMembers: RANDOM_MEMBERS };

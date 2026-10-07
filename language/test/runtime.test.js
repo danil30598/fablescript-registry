@@ -350,6 +350,34 @@ assert.match(validate('input("a", "b")')[0].message, /не больше одно
 assert.match(validate('input(123)')[0].message, /тип string/);
 assert.match(validate('func input() {\n  return "x"\n}')[0].message, /зарезервировано/);
 
+const conversionOutput = [];
+run(`
+  int whole = int("18.9")
+  float fraction = float("3.5")
+  string text = string([1, true, "ok"])
+  bool yes = bool("true")
+  bool no = bool("")
+  print(whole)
+  print(fraction)
+  print(text)
+  print(yes)
+  print(no)
+`, (value) => conversionOutput.push(value));
+assert.deepEqual(conversionOutput, ['18', '3.5', '[1,true,"ok"]', 'true', 'false']);
+assert.match(validate('int()')[0].message, /ровно один аргумент/);
+assert.match(validate('func int(int value) {\n  return 1\n}')[0].message, /зарезервировано/);
+assert.throws(() => run('print(int("кот"))'), /не может преобразовать/);
+
+const caughtConversionOutput = [];
+run(`
+  try {
+    int("не число")
+  } catch error {
+    print(error)
+  }
+`, (value) => caughtConversionOutput.push(value));
+assert.match(caughtConversionOutput[0], /int не может преобразовать/);
+
 const caughtOutput = [];
 run(`
   try {

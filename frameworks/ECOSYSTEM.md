@@ -11,6 +11,8 @@
 | Модуль | Назначение | Установка |
 | --- | --- | --- |
 | `file` | Чтение и запись текстовых файлов | Входит в язык |
+| `json` | Разбор и создание JSON | Входит в язык |
+| `math` | Математические функции и константы | Входит в язык |
 | `random` | Случайные числа, выбор элементов и вероятности | Входит в язык |
 | `window` | Графическое окно, фигуры, изображения, звук и ввод | `fable install window` |
 
@@ -24,6 +26,29 @@ print(file.read("save.txt"))
 ```
 
 Экспортируемые функции: `read`, `write`, `append`, `exists`.
+
+### json
+
+```fable
+import json
+
+string text = json.stringify({name: "Alex", score: 10})
+var data = json.parse(text)
+print(data.name)
+```
+
+Экспортируемые функции: `parse`, `stringify`, `pretty`.
+
+### math
+
+```fable
+import math
+
+print(math.sqrt(81))
+print(math.PI)
+```
+
+Экспортируемые значения: `PI`, `E`. Функции: `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, `pow`, `sin`, `cos`, `tan`.
 
 ### random
 
