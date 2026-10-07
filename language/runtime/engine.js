@@ -8,6 +8,7 @@ const BUILTIN_FUNCTIONS = new Map([
   ['float', 'float'],
   ['string', 'string'],
   ['bool', 'bool'],
+  ['range', { kind: 'list', element: 'int' }],
 ]);
 
 class FableError extends Error {
@@ -53,7 +54,7 @@ function tokenize(text, line, baseColumn) {
       i += 2;
       continue;
     }
-    if ('+-*/()<>[]{},:.'.includes(text[i])) { push(text[i], text[i], i); i += 1; continue; }
+    if ('+-*/%()<>[]{},:.'.includes(text[i])) { push(text[i], text[i], i); i += 1; continue; }
     if (text[i] === '"' || text[i] === "'") {
       const start = i;
       const quote = text[i++];
@@ -86,6 +87,7 @@ function tokenize(text, line, baseColumn) {
     if (identifier) {
       const raw = identifier[0];
       if (raw === 'true' || raw === 'false') push('literal', raw === 'true', i, { valueType: 'bool' });
+      else if (raw === 'null') push('literal', null, i, { valueType: 'any' });
       else if (raw === 'and' || raw === 'or' || raw === 'not') push(raw, raw, i);
       else push('identifier', raw, i);
       i += raw.length;
@@ -199,7 +201,7 @@ function parseExpression(text, line, column) {
   }
   function multiply() {
     let left = unary();
-    while (current()?.type === '*' || current()?.type === '/') {
+    while (current()?.type === '*' || current()?.type === '/' || current()?.type === '%') {
       const operator = tokens[position++];
       left = { kind: 'binary', operator: operator.type, left, right: unary(), line, column: operator.column };
     }
@@ -277,6 +279,20 @@ function parseSimpleStatement(sourceLine) {
   if (match) {
     const [, declaredType, name, expressionText] = match;
     return { kind: 'declaration', declaredType, name, nameColumn: sourceLine.column + text.indexOf(name), expression: parseExpression(expressionText, sourceLine.line, sourceLine.column + text.indexOf(expressionText)), ...sourceLine };
+  }
+  match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\.([A-Za-z_][A-Za-z0-9_]*))?\s*(\+=|-=|\*=|\/=|%=)\s*(.+)$/);
+  if (match) {
+    const [, objectName, memberName, compoundOperator, expressionText] = match;
+    const left = memberName
+      ? { kind: 'member', object: { kind: 'identifier', name: objectName, line: sourceLine.line, column: sourceLine.column }, name: memberName, line: sourceLine.line, column: sourceLine.column + text.indexOf('.') }
+      : { kind: 'identifier', name: objectName, line: sourceLine.line, column: sourceLine.column };
+    const expression = {
+      kind: 'binary', operator: compoundOperator[0], left,
+      right: parseExpression(expressionText, sourceLine.line, sourceLine.column + text.lastIndexOf(expressionText)),
+      line: sourceLine.line, column: sourceLine.column + text.indexOf(compoundOperator),
+    };
+    if (memberName) return { kind: 'memberAssignment', object: left.object, name: memberName, expression, ...sourceLine };
+    return { kind: 'assignment', name: objectName, nameColumn: sourceLine.column, expression, ...sourceLine };
   }
   match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
   if (match) {
@@ -397,12 +413,50 @@ function parseFollowingBlock(lines, index, sameLineBrace, sourceLine, label) {
   return { statements: body.statements, next: body.index + 1 };
 }
 
+function parseIfStatement(lines, index, sourceLine) {
+  const ifMatch = sourceLine.text.match(/^if\s+(.+)\s*\{$/);
+  if (!ifMatch) throw new FableError('Некорректное условие if.', sourceLine.line, sourceLine.column);
+  const conditionText = ifMatch[1].trim();
+  const conditionColumn = sourceLine.column + sourceLine.text.indexOf(conditionText);
+  const thenBlock = parseBlock(lines, index + 1, true);
+  let next = thenBlock.index + 1;
+  let elseBranch = [];
+
+  const combinedElseIf = thenBlock.terminator.match(/^}\s*else\s+(if\s+.+\s*\{)$/);
+  const separateElseIf = combinedElseIf ? null : lines[next]?.text.match(/^else\s+(if\s+.+\s*\{)$/);
+  if (combinedElseIf || separateElseIf) {
+    const headerLine = combinedElseIf ? lines[thenBlock.index] : lines[next];
+    const nestedText = (combinedElseIf || separateElseIf)[1];
+    const nestedSource = { ...headerLine, text: nestedText, column: headerLine.column + headerLine.text.indexOf('if') };
+    const nested = parseIfStatement(lines, combinedElseIf ? thenBlock.index : next, nestedSource);
+    elseBranch = [nested.node];
+    next = nested.next;
+  } else if (thenBlock.terminator === '} else {') {
+    const elseBlock = parseBlock(lines, next, true);
+    if (elseBlock.terminator !== '}') throw new FableError('Некорректное завершение блока else.', lines[elseBlock.index].line, lines[elseBlock.index].column);
+    elseBranch = elseBlock.statements;
+    next = elseBlock.index + 1;
+  } else if (lines[next]?.text === 'else {') {
+    const elseBlock = parseBlock(lines, next + 1, true);
+    if (elseBlock.terminator !== '}') throw new FableError('Некорректное завершение блока else.', lines[elseBlock.index].line, lines[elseBlock.index].column);
+    elseBranch = elseBlock.statements;
+    next = elseBlock.index + 1;
+  }
+
+  return {
+    node: { kind: 'if', condition: parseExpression(conditionText, sourceLine.line, conditionColumn), thenBranch: thenBlock.statements, elseBranch, ...sourceLine },
+    next,
+  };
+}
+
 function parseBlock(lines, start, nested) {
   const statements = [];
   let index = start;
   while (index < lines.length) {
     const sourceLine = lines[index];
     if (sourceLine.text === '}' || sourceLine.text === '} else {' || sourceLine.text === 'else {'
+      || /^}\s*else\s+if\s+.+\s*\{$/.test(sourceLine.text)
+      || /^else\s+if\s+.+\s*\{$/.test(sourceLine.text)
       || /^}\s*catch\s+[A-Za-z_][A-Za-z0-9_]*\s*\{$/.test(sourceLine.text)
       || /^catch\s+[A-Za-z_][A-Za-z0-9_]*\s*\{$/.test(sourceLine.text)) {
       if (!nested) throw new FableError('Лишняя закрывающая скобка.', sourceLine.line, sourceLine.column);
@@ -518,24 +572,9 @@ function parseBlock(lines, start, nested) {
       continue;
     }
 
-    const conditionText = ifMatch[1].trim();
-    const conditionColumn = sourceLine.column + sourceLine.text.indexOf(conditionText);
-    const thenBlock = parseBlock(lines, index + 1, true);
-    let next = thenBlock.index + 1;
-    let elseBranch = [];
-    if (thenBlock.terminator === '} else {') {
-      const elseBlock = parseBlock(lines, next, true);
-      if (elseBlock.terminator !== '}') throw new FableError('Некорректное завершение блока else.', lines[elseBlock.index].line, lines[elseBlock.index].column);
-      elseBranch = elseBlock.statements;
-      next = elseBlock.index + 1;
-    } else if (lines[next]?.text === 'else {') {
-      const elseBlock = parseBlock(lines, next + 1, true);
-      if (elseBlock.terminator !== '}') throw new FableError('Некорректное завершение блока else.', lines[elseBlock.index].line, lines[elseBlock.index].column);
-      elseBranch = elseBlock.statements;
-      next = elseBlock.index + 1;
-    }
-    statements.push({ kind: 'if', condition: parseExpression(conditionText, sourceLine.line, conditionColumn), thenBranch: thenBlock.statements, elseBranch, ...sourceLine });
-    index = next;
+    const parsedIf = parseIfStatement(lines, index, sourceLine);
+    statements.push(parsedIf.node);
+    index = parsedIf.next;
   }
   if (nested) {
     const fallback = lines[lines.length - 1] ?? { line: 1, column: 1 };
@@ -665,6 +704,14 @@ function typeOf(expression, symbols, context) {
         if (promptType !== 'string' && promptType !== 'any') throw new FableError('Подсказка input должна иметь тип string.', expression.args[0].line, expression.args[0].column);
       }
       return 'string';
+    }
+    if (expression.name === 'range') {
+      if (expression.args.length < 1 || expression.args.length > 3) throw new FableError('range ожидает от одного до трёх аргументов.', expression.line, expression.column);
+      for (const argument of expression.args) {
+        const argumentType = typeOf(argument, symbols, context);
+        if (argumentType !== 'int' && argumentType !== 'any') throw new FableError('Аргументы range должны иметь тип int.', argument.line, argument.column);
+      }
+      return BUILTIN_FUNCTIONS.get('range');
     }
     if (BUILTIN_FUNCTIONS.has(expression.name)) {
       if (expression.args.length !== 1) throw new FableError(`${expression.name} ожидает ровно один аргумент.`, expression.line, expression.column);
@@ -979,6 +1026,19 @@ function evaluate(expression, values, runtime) {
       }
       return Boolean(value);
     }
+    if (expression.name === 'range') {
+      if (!argumentValues.every(Number.isInteger)) throw new FableError('Аргументы range должны быть целыми числами.', expression.line, expression.column);
+      const [start, end, step] = argumentValues.length === 1
+        ? [0, argumentValues[0], 1]
+        : [argumentValues[0], argumentValues[1], argumentValues[2] ?? 1];
+      if (step === 0) throw new FableError('Шаг range не может быть равен нулю.', expression.line, expression.column);
+      const values = [];
+      for (let value = start; step > 0 ? value < end : value > end; value += step) {
+        if (values.length >= 1000000) throw new FableError('range не может создать больше 1000000 значений.', expression.line, expression.column);
+        values.push(value);
+      }
+      return values;
+    }
     const fn = runtime.functions.get(expression.name);
     if (!fn) {
       const classNode = runtime.classes.get(expression.name);
@@ -995,7 +1055,9 @@ function evaluate(expression, values, runtime) {
   const left = evaluate(expression.left, values, runtime);
   const right = evaluate(expression.right, values, runtime);
   return {
-    '+': () => left + right, '-': () => left - right, '*': () => left * right, '/': () => left / right,
+    '+': () => left + right, '-': () => left - right, '*': () => left * right,
+    '/': () => { if (right === 0) throw new FableError('Деление на ноль.', expression.line, expression.column); return left / right; },
+    '%': () => { if (right === 0) throw new FableError('Деление по модулю на ноль.', expression.line, expression.column); return left % right; },
     '==': () => left === right, '!=': () => left !== right,
     '<': () => left < right, '>': () => left > right, '<=': () => left <= right, '>=': () => left >= right,
   }[expression.operator]();

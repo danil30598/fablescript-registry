@@ -13,6 +13,26 @@ run(`
 `, (value) => output.push(value));
 assert.deepEqual(output, ['hello', '15']);
 
+const arithmeticOutput = [];
+run(`
+  var score = 10
+  score += 7
+  score *= 2
+  score -= 4
+  score %= 9
+  float speed = 9
+  speed /= 2
+  var player = {points: 3}
+  player.points += 4
+  print(score)
+  print(speed)
+  print(player.points)
+  print(10 + 7 % 4 * 2)
+`, (value) => arithmeticOutput.push(value));
+assert.deepEqual(arithmeticOutput, ['3', '4.5', '7', '16']);
+assert.throws(() => run('print(4 % 0)'), /модулю на ноль/);
+assert.throws(() => run('print(4 / 0)'), /Деление на ноль/);
+
 const errors = validate('unknown()');
 assert.equal(errors.length, 1);
 assert.equal(errors[0].line, 1);
@@ -51,6 +71,36 @@ const elseOutput = [];
 run('var age = 10\nif age >= 18 {\nprint("adult")\n} else {\nprint("child")\n}',
   (value) => elseOutput.push(value));
 assert.deepEqual(elseOutput, ['child']);
+
+const elseIfOutput = [];
+run(`
+  var score = 75
+  if score > 100 {
+    print("win")
+  } else if score > 50 {
+    print("close")
+  } else if score > 0 {
+    print("started")
+  } else {
+    print("zero")
+  }
+`, (value) => elseIfOutput.push(value));
+assert.deepEqual(elseIfOutput, ['close']);
+
+const separateElseIfOutput = [];
+run(`
+  var value = 0
+  if value > 0 {
+    print("positive")
+  }
+  else if value < 0 {
+    print("negative")
+  }
+  else {
+    print("zero")
+  }
+`, (value) => separateElseIfOutput.push(value));
+assert.deepEqual(separateElseIfOutput, ['zero']);
 
 const conditionTypeErrors = validate('if 42 {\nprint("never")\n}');
 assert.equal(conditionTypeErrors.length, 1);
@@ -105,6 +155,36 @@ run(`
   }
 `, (value) => loopOutput.push(value));
 assert.deepEqual(loopOutput, ['0', '1', '2', 'repeat', 'repeat']);
+
+const rangeOutput = [];
+run(`
+  for number in range(4) {
+    print(number)
+  }
+  for number in range(2, 5) {
+    print(number)
+  }
+  for number in range(5, 0, -2) {
+    print(number)
+  }
+`, (value) => rangeOutput.push(value));
+assert.deepEqual(rangeOutput, ['0', '1', '2', '3', '2', '3', '4', '5', '3', '1']);
+assert.match(validate('for value in range(1.5) {\n  print(value)\n}')[0].message, /тип int/);
+assert.match(validate('range()')[0].message, /от одного до трёх/);
+assert.throws(() => run('print(range(1, 5, 0))'), /не может быть равен нулю/);
+
+const nullOutput = [];
+run(`
+  var target = null
+  if target == null {
+    print("empty")
+  }
+  target = {name: "Enemy"}
+  print(target.name)
+  print(string(null))
+  print(bool(null))
+`, (value) => nullOutput.push(value));
+assert.deepEqual(nullOutput, ['empty', 'Enemy', 'null', 'false']);
 
 const loopControlOutput = [];
 run(`

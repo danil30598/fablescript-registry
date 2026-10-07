@@ -2,7 +2,7 @@
   "name": "fablescript",
   "displayName": "FableScript",
   "description": "Поддержка экспериментального языка FableScript",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "publisher": "fablescript",
   "engines": {
     "vscode": "^1.85.0"

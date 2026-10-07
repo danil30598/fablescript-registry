@@ -10,3 +10,18 @@ if age >= 18 and hasTicket {
 if age == 18 {
     print("Ровно восемнадцать")
 }
+
+var score = 75
+
+if score > 100 {
+    print("Победа")
+} else if score > 50 {
+    print("Почти победа")
+} else {
+    print("Продолжай")
+}
+
+var target = null
+if target == null {
+    print("Цель не выбрана")
+}

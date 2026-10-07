@@ -266,10 +266,12 @@ function activate(context) {
           snippet('table', 'var ${1:name} = {${2:key}: ${3:value}}', 'Создать таблицу'),
           snippet('if', 'if ${1:condition} {\n\t${0}\n}', 'Условие'),
           snippet('if else', 'if ${1:condition} {\n\t${2}\n} else {\n\t${0}\n}', 'Условие с альтернативной веткой'),
+          snippet('else if', 'else if ${1:condition} {\n\t${0}\n}', 'Дополнительная ветка условия'),
           snippet('try catch', 'try {\n\t${1}\n} catch ${2:error} {\n\t${0}\n}', 'Перехватить ошибку выполнения'),
           snippet('while', 'while ${1:condition} {\n\t${0}\n}', 'Цикл с условием'),
           snippet('repeat', 'repeat ${1:count} times {\n\t${0}\n}', 'Повторить блок заданное число раз'),
           snippet('for', 'for ${1:item} in ${2:collection} {\n\t${0}\n}', 'Перебрать список или ключи таблицы'),
+          snippet('range', 'range(${1:start}, ${2:end}, ${3:step})', 'Создать диапазон целых чисел'),
           snippet('break', 'break', 'Завершить текущий цикл'),
           snippet('continue', 'continue', 'Перейти к следующей итерации цикла'),
           snippet('func', 'func ${1:name}(${2:int value})\n{\n\t${0}\n}', 'Объявить функцию'),
@@ -286,7 +288,7 @@ function activate(context) {
           suggestions.push(item);
         }
 
-        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'and', 'or', 'not', 'in', 'times', 'break', 'continue', 'try', 'catch']) {
+        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'null', 'and', 'or', 'not', 'in', 'times', 'break', 'continue', 'try', 'catch']) {
           const item = new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Keyword);
           item.detail = 'Ключевое слово FableScript';
           item.sortText = `1-${keyword}`;

@@ -16,6 +16,7 @@ FableScript — экспериментальный язык для обучен�
 - Встроенный модуль `file` для чтения, записи и проверки текстовых файлов.
 - Встроенные модули `math` и `json` для вычислений и обмена данными.
 - Преобразования типов `int()`, `float()`, `string()` и `bool()`.
+- Оператор `%`, присваивания `+=`, `-=`, `*=`, `/=`, `%=`, цепочки `else if`, диапазоны `range()` и значение `null`.
 - Управление циклами с помощью `break` и `continue`.
 - Консольный ввод через `input()` и обработка ошибок через `try/catch`.
 - Сборка проекта в переносимую папку со своим `node.exe`.
@@ -43,9 +44,61 @@ node .\runtime\cli.js run .\examples\hello.fable
 pwsh -NoProfile -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.39.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.40.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
+
+## Операторы и управление программой
+
+Оператор `%` возвращает остаток от деления. Составные присваивания сокращают изменение переменной или поля:
+
+```fable
+var score = 10
+score += 5
+score *= 2
+
+if score % 2 == 0 {
+    print("Чётное значение")
+}
+```
+
+Условия можно объединять в цепочку:
+
+```fable
+if score > 100 {
+    print("Победа")
+} else if score > 50 {
+    print("Почти")
+} else {
+    print("Продолжай")
+}
+```
+
+`range(end)`, `range(start, end)` и `range(start, end, step)` создают список целых чисел. Правая граница не включается:
+
+```fable
+for number in range(1, 5) {
+    print(number)
+}
+
+for number in range(5, 0, -2) {
+    print(number)
+}
+```
+
+`null` обозначает отсутствующее значение. Переменная, созданная через `var value = null`, остаётся динамической и позже может получить другое значение:
+
+```fable
+var target = null
+
+if target == null {
+    print("Цель не выбрана")
+}
+
+target = {name: "Enemy"}
+```
+
+Примеры находятся в `examples/conditions.fable` и `examples/loops.fable`.
 
 ## Локальные модули
 
