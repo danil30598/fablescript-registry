@@ -113,6 +113,16 @@ function activate(context) {
     output.appendLine('');
     try {
       const filePath = editor.document.uri.fsPath;
+      if (/\binput\s*\(/.test(editor.document.getText())) {
+        const terminal = vscode.window.createTerminal({
+          name: `FableScript: ${path.basename(filePath)}`,
+          shellPath: process.execPath,
+          shellArgs: [path.join(runtimePath, 'cli.js'), 'run', filePath],
+          env: { ELECTRON_RUN_AS_NODE: '1' },
+        });
+        terminal.show();
+        return;
+      }
       run(editor.document.getText(), (value) => output.appendLine(value), {
         filePath,
         loadModule: createModuleLoader(filePath),
@@ -246,11 +256,13 @@ function activate(context) {
         const suggestions = [
           snippet('import', 'import ${1:module}', 'Подключить локальный модуль'),
           snippet('print', 'print(${1:value})', 'Вывести значение'),
+          snippet('input', 'input(${1:"Введите значение: "})', 'Прочитать строку из консоли'),
           snippet('var', 'var ${1:name} = ${2:value}', 'Объявить переменную с автоматическим типом'),
           snippet('list', 'var ${1:name} = [${2:values}]', 'Создать список'),
           snippet('table', 'var ${1:name} = {${2:key}: ${3:value}}', 'Создать таблицу'),
           snippet('if', 'if ${1:condition} {\n\t${0}\n}', 'Условие'),
           snippet('if else', 'if ${1:condition} {\n\t${2}\n} else {\n\t${0}\n}', 'Условие с альтернативной веткой'),
+          snippet('try catch', 'try {\n\t${1}\n} catch ${2:error} {\n\t${0}\n}', 'Перехватить ошибку выполнения'),
           snippet('while', 'while ${1:condition} {\n\t${0}\n}', 'Цикл с условием'),
           snippet('repeat', 'repeat ${1:count} times {\n\t${0}\n}', 'Повторить блок заданное число раз'),
           snippet('for', 'for ${1:item} in ${2:collection} {\n\t${0}\n}', 'Перебрать список или ключи таблицы'),
@@ -270,7 +282,7 @@ function activate(context) {
           suggestions.push(item);
         }
 
-        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'and', 'or', 'not', 'in', 'times', 'break', 'continue']) {
+        for (const keyword of ['int', 'float', 'string', 'bool', 'any', 'self', 'true', 'false', 'and', 'or', 'not', 'in', 'times', 'break', 'continue', 'try', 'catch']) {
           const item = new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Keyword);
           item.detail = 'Ключевое слово FableScript';
           item.sortText = `1-${keyword}`;

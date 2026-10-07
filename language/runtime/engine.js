@@ -394,7 +394,9 @@ function parseBlock(lines, start, nested) {
   let index = start;
   while (index < lines.length) {
     const sourceLine = lines[index];
-    if (sourceLine.text === '}' || sourceLine.text === '} else {' || sourceLine.text === 'else {') {
+    if (sourceLine.text === '}' || sourceLine.text === '} else {' || sourceLine.text === 'else {'
+      || /^}\s*catch\s+[A-Za-z_][A-Za-z0-9_]*\s*\{$/.test(sourceLine.text)
+      || /^catch\s+[A-Za-z_][A-Za-z0-9_]*\s*\{$/.test(sourceLine.text)) {
       if (!nested) throw new FableError('Лишняя закрывающая скобка.', sourceLine.line, sourceLine.column);
       return { statements, index, terminator: sourceLine.text };
     }
@@ -471,6 +473,34 @@ function parseBlock(lines, start, nested) {
         ...sourceLine,
       });
       index = body.next;
+      continue;
+    }
+    const trySameLine = sourceLine.text.match(/^try\s*\{$/);
+    const tryNextLine = trySameLine ? null : sourceLine.text.match(/^try$/);
+    if (trySameLine || tryNextLine) {
+      let bodyStart = index + 1;
+      if (!trySameLine) {
+        if (lines[bodyStart]?.text !== '{') throw new FableError('После try ожидалась открывающая скобка {.', sourceLine.line, sourceLine.column);
+        bodyStart += 1;
+      }
+      const tryBlock = parseBlock(lines, bodyStart, true);
+      let catchMatch = tryBlock.terminator.match(/^}\s*catch\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{$/);
+      let catchStart = tryBlock.index + 1;
+      if (!catchMatch) {
+        catchMatch = lines[catchStart]?.text.match(/^catch\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{$/);
+        if (catchMatch) catchStart += 1;
+      }
+      if (!catchMatch) throw new FableError('После try ожидался блок catch error { ... }.', sourceLine.line, sourceLine.column);
+      const catchBlock = parseBlock(lines, catchStart, true);
+      if (catchBlock.terminator !== '}') throw new FableError('Некорректное завершение блока catch.', lines[catchBlock.index].line, lines[catchBlock.index].column);
+      statements.push({
+        kind: 'try',
+        tryBody: tryBlock.statements,
+        catchName: catchMatch[1],
+        catchBody: catchBlock.statements,
+        ...sourceLine,
+      });
+      index = catchBlock.index + 1;
       continue;
     }
     const ifMatch = sourceLine.text.match(/^if\s+(.+)\s*\{$/);
@@ -613,6 +643,14 @@ function typeOf(expression, symbols, context) {
     return expression.name === 'remove' ? 'bool' : 'void';
   }
   if (expression.kind === 'call') {
+    if (expression.name === 'input') {
+      if (expression.args.length > 1) throw new FableError('input ожидает не больше одного аргумента.', expression.line, expression.column);
+      if (expression.args.length === 1) {
+        const promptType = typeOf(expression.args[0], symbols, context);
+        if (promptType !== 'string' && promptType !== 'any') throw new FableError('Подсказка input должна иметь тип string.', expression.args[0].line, expression.args[0].column);
+      }
+      return 'string';
+    }
     const fn = context.functions.get(expression.name);
     if (!fn) {
       const classInfo = context.classes.get(expression.name);
@@ -746,6 +784,12 @@ function checkBlock(program, symbols, context, returns = []) {
       const loopSymbols = new Map(symbols);
       loopSymbols.set(statement.name, itemType);
       checkBlock(statement.body, loopSymbols, { ...context, loopDepth: (context.loopDepth || 0) + 1 }, returns);
+    } else if (statement.kind === 'try') {
+      checkBlock(statement.tryBody, new Map(symbols), context, returns);
+      if (symbols.has(statement.catchName)) throw new FableError(`Имя ошибки «${statement.catchName}» уже используется.`, statement.line, statement.column);
+      const catchSymbols = new Map(symbols);
+      catchSymbols.set(statement.catchName, 'string');
+      checkBlock(statement.catchBody, catchSymbols, context, returns);
     } else if (statement.kind === 'break' || statement.kind === 'continue') {
       if (!(context.loopDepth > 0)) throw new FableError(`${statement.kind} можно использовать только внутри цикла.`, statement.line, statement.column);
     } else if (statement.kind === 'return') {
@@ -768,6 +812,7 @@ function check(program) {
   const classes = new Map();
   for (const statement of program) {
     if (statement.kind !== 'class') continue;
+    if (statement.name === 'input') throw new FableError('Имя «input» зарезервировано встроенной функцией.', statement.line, statement.column);
     if (classes.has(statement.name)) throw new FableError(`Класс «${statement.name}» уже объявлен.`, statement.line, statement.column);
     const fields = new Map();
     for (const field of statement.fields) {
@@ -784,6 +829,7 @@ function check(program) {
   }
   for (const statement of program) {
     if (statement.kind !== 'function') continue;
+    if (statement.name === 'input') throw new FableError('Имя «input» зарезервировано встроенной функцией.', statement.line, statement.column);
     if (functions.has(statement.name)) throw new FableError(`Функция «${statement.name}» уже объявлена.`, statement.line, statement.column);
     functions.set(statement.name, {
       ...statement,
@@ -891,8 +937,9 @@ function evaluate(expression, values, runtime) {
     return true;
   }
   if (expression.kind === 'call') {
-    const fn = runtime.functions.get(expression.name);
     const argumentValues = expression.args.map((argument) => evaluate(argument, values, runtime));
+    if (expression.name === 'input') return runtime.input(argumentValues[0] ?? '');
+    const fn = runtime.functions.get(expression.name);
     if (!fn) {
       const classNode = runtime.classes.get(expression.name);
       return instantiateClassNode(classNode, argumentValues, runtime, runtime.functions, runtime.classes);
@@ -925,7 +972,8 @@ function executeBlock(program, values, runtime, scoped) {
     if (scoped) for (const name of declaredHere) values.delete(name);
     return result;
   };
-  for (const statement of program) {
+  try {
+    for (const statement of program) {
     runtime.steps += 1;
     if (runtime.steps > runtime.maxSteps) throw new FableError('Превышен предел выполнения цикла.', statement.line, statement.column);
     if (statement.kind === 'function' || statement.kind === 'class') continue;
@@ -980,6 +1028,20 @@ function executeBlock(program, values, runtime, scoped) {
         if (result?.continued) continue;
       }
       values.delete(statement.name);
+    } else if (statement.kind === 'try') {
+      let result;
+      try {
+        result = executeBlock(statement.tryBody, values, runtime, true);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        values.set(statement.catchName, message);
+        try {
+          result = executeBlock(statement.catchBody, values, runtime, true);
+        } finally {
+          values.delete(statement.catchName);
+        }
+      }
+      if (result?.returned || result?.broken || result?.continued) return finish(result);
     } else if (statement.kind === 'break') {
       return finish({ broken: true });
     } else if (statement.kind === 'continue') {
@@ -989,6 +1051,10 @@ function executeBlock(program, values, runtime, scoped) {
       return finish(result);
     } else if (statement.kind === 'print') runtime.output(formatValue(evaluate(statement.expression, values, runtime)));
     else evaluate(statement.expression, values, runtime);
+    }
+  } catch (error) {
+    if (scoped) for (const name of declaredHere) values.delete(name);
+    throw error;
   }
   return finish(null);
 }
@@ -1088,6 +1154,7 @@ function run(source, output = console.log, options = {}) {
     functions: new Map(),
     classes: new Map(),
     output,
+    input: options.input || (() => { throw new Error('input недоступен в этом режиме запуска.'); }),
     steps: 0,
     maxSteps: options.maxSteps ?? 100000,
     loadModule: options.loadModule,

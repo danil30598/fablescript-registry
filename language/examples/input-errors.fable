@@ -1,0 +1,9 @@
+var name = input("Как тебя зовут? ")
+print("Привет, " + name)
+
+try {
+    var numbers = [1, 2, 3]
+    print(numbers[10])
+} catch error {
+    print("Поймана ошибка: " + error)
+}

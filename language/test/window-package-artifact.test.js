@@ -3,7 +3,6 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { installPackage } = require('../runtime/package-manager');
@@ -23,8 +22,9 @@ async function main() {
   const archive = fs.readFileSync(archivePath);
   assert.equal(crypto.createHash('sha256').update(archive).digest('hex'), release.platforms['win32-x64'].sha256);
 
-  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fablescript-window-package-'));
+  const projectDir = fs.mkdtempSync(path.join(__dirname, '.tmp-fablescript-window-package-'));
   try {
+    fs.writeFileSync(path.join(projectDir, 'fable.json'), '{"name":"window-package-test"}\n', 'utf8');
     const fetchImpl = async (url) => ({
       ok: true,
       status: 200,

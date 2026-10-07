@@ -333,4 +333,78 @@ assert.deepEqual(nativeCalls, [
   ['show'],
 ]);
 
+const inputPrompts = [];
+const inputOutput = [];
+run(`
+  var name = input("Имя: ")
+  print("Привет, " + name)
+`, (value) => inputOutput.push(value), {
+  input(prompt) {
+    inputPrompts.push(prompt);
+    return 'Alex';
+  },
+});
+assert.deepEqual(inputPrompts, ['Имя: ']);
+assert.deepEqual(inputOutput, ['Привет, Alex']);
+assert.match(validate('input("a", "b")')[0].message, /не больше одного аргумента/);
+assert.match(validate('input(123)')[0].message, /тип string/);
+assert.match(validate('func input() {\n  return "x"\n}')[0].message, /зарезервировано/);
+
+const caughtOutput = [];
+run(`
+  try {
+    var values = [1]
+    print(values[3])
+  } catch error {
+    print("Поймано: " + error)
+  }
+  try {
+    print("без ошибки")
+  }
+  catch problem {
+    print(problem)
+  }
+`, (value) => caughtOutput.push(value));
+assert.deepEqual(caughtOutput, ['Поймано: Индекс 3 находится вне списка.', 'без ошибки']);
+
+const caughtInputOutput = [];
+run(`
+  try {
+    input()
+  } catch error {
+    print(error)
+  }
+`, (value) => caughtInputOutput.push(value));
+assert.deepEqual(caughtInputOutput, ['input недоступен в этом режиме запуска.']);
+
+const caughtModuleOutput = [];
+run(`
+  try {
+    import missing
+  } catch error {
+    print(error)
+  }
+`, (value) => caughtModuleOutput.push(value), {
+  filePath: 'C:\\project\\main.fable',
+  loadModule() { throw new Error('файл не найден'); },
+});
+assert.match(caughtModuleOutput[0], /Не удалось загрузить модуль «missing»/);
+
+const tryReturnOutput = [];
+run(`
+  func result() {
+    try {
+      return 7
+    } catch error {
+      return 0
+    }
+  }
+  print(result())
+`, (value) => tryReturnOutput.push(value));
+assert.deepEqual(tryReturnOutput, ['7']);
+
+const catchScopeErrors = validate('try {\n  input()\n} catch problem {\n  print(problem)\n}\nprint(problem)');
+assert.equal(catchScopeErrors.length, 1);
+assert.match(catchScopeErrors[0].message, /не объявлена/);
+
 console.log('runtime tests passed');

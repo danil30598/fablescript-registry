@@ -34,6 +34,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\module-loader.js') -Dest
 Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\package-manager.js') -Destination $runtimeTarget -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\cli.js') -Destination $runtimeTarget -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\builder.js') -Destination $runtimeTarget -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\console-input.js') -Destination $runtimeTarget -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\native-modules') -Destination $runtimeTarget -Recurse -Force
 Remove-Item -LiteralPath (Join-Path $runtimeTarget 'native-modules\window-host.py') -Force -ErrorAction SilentlyContinue
 
@@ -56,6 +57,7 @@ if (Test-Path -LiteralPath $windowsApps) {
     Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\package-manager.js') -Destination $windowsRuntime -Force
     Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\cli.js') -Destination $windowsRuntime -Force
     Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\builder.js') -Destination $windowsRuntime -Force
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\console-input.js') -Destination $windowsRuntime -Force
     Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime\native-modules') -Destination $windowsRuntime -Recurse -Force
     Remove-Item -LiteralPath (Join-Path $windowsRuntime 'native-modules\window-host.py') -Force -ErrorAction SilentlyContinue
     $windowsLauncher = @"

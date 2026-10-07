@@ -65,6 +65,18 @@ function prepareOutput(outputDirectory) {
   fs.rmSync(outputDirectory, { recursive: true, force: true });
 }
 
+function renameWithRetry(source, destination) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      fs.renameSync(source, destination);
+      return;
+    } catch (error) {
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes(error.code) || attempt === 19) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    }
+  }
+}
+
 function buildPortable(entryFilePath, options = {}) {
   if (process.platform !== 'win32') throw new Error('Сборка .exe пока поддерживается только на Windows.');
   const entryPath = path.resolve(entryFilePath);
@@ -95,7 +107,7 @@ function buildPortable(entryFilePath, options = {}) {
     const modulesSource = path.join(projectRoot, 'fable_modules');
     if (fs.existsSync(modulesSource)) fs.cpSync(modulesSource, path.join(bundledProject, 'fable_modules'), { recursive: true });
 
-    for (const runtimeFile of ['engine.js', 'module-loader.js']) {
+    for (const runtimeFile of ['engine.js', 'module-loader.js', 'console-input.js']) {
       fs.copyFileSync(path.join(__dirname, runtimeFile), path.join(bundledRuntime, runtimeFile));
     }
     fs.cpSync(path.join(__dirname, 'native-modules'), path.join(bundledRuntime, 'native-modules'), { recursive: true });
@@ -103,7 +115,7 @@ function buildPortable(entryFilePath, options = {}) {
     fs.copyFileSync(nodeExecutable, executablePath);
 
     const entryRelative = path.relative(projectRoot, entryPath);
-    const runnerSource = `'use strict';\nconst fs = require('node:fs');\nconst path = require('node:path');\nconst { FableError, run } = require('./runtime/engine');\nconst { createModuleLoader } = require('./runtime/module-loader');\nconst filePath = path.join(__dirname, 'project', ${JSON.stringify(entryRelative)});\ntry {\n  const source = fs.readFileSync(filePath, 'utf8');\n  run(source, console.log, { filePath, loadModule: createModuleLoader(filePath) });\n} catch (error) {\n  if (error instanceof FableError) {\n    console.error(\`${'${error.filePath || filePath}'}:${'${error.line}'}:${'${error.column}'}: ${'${error.message}'}\`);\n    process.exitCode = 1;\n  } else {\n    console.error(\`FableScript: ${'${error.message}'}\`);\n    process.exitCode = 1;\n  }\n}\n`;
+    const runnerSource = `'use strict';\nconst fs = require('node:fs');\nconst path = require('node:path');\nconst { FableError, run } = require('./runtime/engine');\nconst { createModuleLoader } = require('./runtime/module-loader');\nconst { readConsoleInput } = require('./runtime/console-input');\nconst filePath = path.join(__dirname, 'project', ${JSON.stringify(entryRelative)});\ntry {\n  const source = fs.readFileSync(filePath, 'utf8');\n  run(source, console.log, { filePath, loadModule: createModuleLoader(filePath), input: readConsoleInput });\n} catch (error) {\n  if (error instanceof FableError) {\n    console.error(\`${'${error.filePath || filePath}'}:${'${error.line}'}:${'${error.column}'}: ${'${error.message}'}\`);\n    process.exitCode = 1;\n  } else {\n    console.error(\`FableScript: ${'${error.message}'}\`);\n    process.exitCode = 1;\n  }\n}\n`;
     fs.writeFileSync(path.join(appDirectory, 'runner.js'), runnerSource, 'utf8');
     const launcherPath = path.join(stagingDirectory, `${name}.cmd`);
     const launcherSource = `@echo off\r\nchcp 65001 >nul\r\n"%~dp0${name}.exe" "%~dp0app\\runner.js" %*\r\nif errorlevel 1 pause\r\n`;
@@ -111,7 +123,7 @@ function buildPortable(entryFilePath, options = {}) {
     fs.writeFileSync(path.join(stagingDirectory, 'КАК ЗАПУСТИТЬ.txt'), `Запустите файл ${name}.cmd.\r\n\r\n${name}.exe — это встроенный Node.js, его не нужно устанавливать отдельно.\r\nПередавайте всю папку целиком.\r\n`, 'utf8');
     fs.writeFileSync(path.join(stagingDirectory, BUILD_MARKER), `${JSON.stringify({ kind: 'fablescript-portable-build', name, entry: entryRelative }, null, 2)}\n`, 'utf8');
     fs.mkdirSync(path.dirname(outputDirectory), { recursive: true });
-    fs.renameSync(stagingDirectory, outputDirectory);
+    renameWithRetry(stagingDirectory, outputDirectory);
     return {
       name,
       executablePath: path.join(outputDirectory, `${name}.exe`),

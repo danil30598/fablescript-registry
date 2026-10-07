@@ -3,7 +3,6 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { run } = require('../runtime/engine');
 const { createModuleLoader } = require('../runtime/module-loader');
@@ -48,8 +47,9 @@ function storedZip(entries) {
 }
 
 async function main() {
-  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fablescript-package-test-'));
+  const projectDir = fs.mkdtempSync(path.join(__dirname, '.tmp-fablescript-package-'));
   try {
+    fs.writeFileSync(path.join(projectDir, 'fable.json'), '{"name":"package-test"}\n', 'utf8');
     const source = 'func hello(string name) {\nreturn "Hello, " + name\n}\n';
     const sha256 = crypto.createHash('sha256').update(source, 'utf8').digest('hex');
     const windowArchive = storedZip({

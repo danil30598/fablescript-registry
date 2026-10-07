@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { FableError, run } = require('./engine');
 const { buildPortable } = require('./builder');
+const { readConsoleInput } = require('./console-input');
 const { createModuleLoader, findConfiguredProjectDir, globalModulesDir } = require('./module-loader');
 const { installPackage } = require('./package-manager');
 
@@ -62,6 +63,7 @@ async function main() {
     run(source, console.log, {
       filePath,
       loadModule: createModuleLoader(filePath),
+      input: readConsoleInput,
     });
   } catch (error) {
     if (error instanceof FableError) {
