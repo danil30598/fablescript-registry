@@ -145,6 +145,7 @@ function createWindowModule(options = {}) {
   const openExternal = options.openExternal || defaultOpenExternal;
   const openNative = options.openNative || ((scenePath) => defaultOpenNative(scenePath, options));
   const platform = options.platform || process.platform;
+  const useNativeWindow = platform === 'win32' || Boolean(options.pythonExecutable);
   const temporaryDirectory = options.temporaryDirectory || os.tmpdir();
   const baseDirectory = options.baseDirectory || process.cwd();
   const readFile = options.readFile || ((filePath) => fs.readFileSync(filePath, 'utf8'));
@@ -240,7 +241,7 @@ function createWindowModule(options = {}) {
       scene.items.push({ kind: 'sprite', path: imagePath, uri: pathToFileURL(imagePath).href, x: finiteNumber(x, 'x'), y: finiteNumber(y, 'y'), width: finiteNumber(width, 'Ширина', { positive: true }), height: finiteNumber(height, 'Высота', { positive: true }), angle: angle === undefined ? 0 : finiteNumber(angle, 'Угол') });
     },
     show() {
-      if (platform === 'win32') {
+      if (useNativeWindow) {
         if (scenePath && readState().open) return true;
         scenePath = path.join(temporaryDirectory, `fablescript-window-${randomUUID()}.json`);
         statePath = `${scenePath}.state.json`;

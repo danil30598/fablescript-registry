@@ -15,6 +15,6 @@
 
 Установка выполняется командой:
 
-```powershell
-node .\runtime\cli.js install greetings
+```text
+fable install greetings
 ```

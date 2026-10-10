@@ -9,9 +9,26 @@
 
 ## Расширение VS Code
 
-Готовый файл: [`language/build/fablescript-0.0.42.vsix`](./language/build/fablescript-0.0.42.vsix).
+Готовый файл: [`language/build/fablescript-0.0.43.vsix`](./language/build/fablescript-0.0.43.vsix).
 
-Расширение добавляет подсветку, диагностику, интерактивный ввод через `input()`, `try/catch`, запуск по `F6`, переносимую сборку, автодополнение и подсказки параметров функций. Язык поддерживает `%`, составные присваивания, `else if`, `range()`, `null`, защищённые файлы RANS#M1 и запуск других файлов через `execute()`; встроены преобразования типов и модули `random`, `file`, `math`, `json`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
+Расширение добавляет подсветку, диагностику, интерактивный ввод через `input()`, `try/catch`, запуск по `F6`, переносимую сборку, автодополнение и подсказки параметров функций. Язык поддерживает `%`, составные присваивания, `else if`, `range()`, `null`, защищённые файлы RANS#M1 и запуск других файлов через `execute()`; встроены преобразования типов и модули `random`, `file`, `math`, `json`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows x64 и macOS на Apple Silicon. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
+
+## CLI на Mac с Apple Silicon
+
+Из папки `language` выполните один раз:
+
+```bash
+sh ./tools/install-cli.sh
+```
+
+После открытия нового Terminal доступны команды:
+
+```bash
+fable install window
+fable run examples/hello.fable
+```
+
+`window` 1.2.0 скачивает собственные Python и Pygame для `darwin-arm64`; устанавливать их отдельно не нужно.
 
 ## Пакеты
 

@@ -14,13 +14,20 @@ async function main() {
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
   const version = registry.packages.window.latest;
   const release = registry.packages.window.versions[version];
-  const archiveName = `window-runtime-${version}-win32-x64.zip`;
-  const localArchive = path.join(projectRoot, 'build', archiveName);
-  const archivePath = fs.existsSync(localArchive)
-    ? localArchive
-    : path.join(projectRoot, '..', 'frameworks', 'window', archiveName);
-  const archive = fs.readFileSync(archivePath);
-  assert.equal(crypto.createHash('sha256').update(archive).digest('hex'), release.platforms['win32-x64'].sha256);
+  const readPlatformArchive = (platformKey) => {
+    const platformRelease = release.platforms[platformKey];
+    assert.ok(platformRelease, `Missing ${platformKey} release`);
+    const archiveName = path.basename(new URL(platformRelease.url, 'https://example.test/index.json').pathname);
+    const localArchive = path.join(projectRoot, 'build', archiveName);
+    const archivePath = fs.existsSync(localArchive)
+      ? localArchive
+      : path.join(projectRoot, '..', 'frameworks', 'window', archiveName);
+    const archive = fs.readFileSync(archivePath);
+    assert.equal(crypto.createHash('sha256').update(archive).digest('hex'), platformRelease.sha256);
+    return archive;
+  };
+  const windowsArchive = readPlatformArchive('win32-x64');
+  const macArchive = readPlatformArchive('darwin-arm64');
 
   const projectDir = fs.mkdtempSync(path.join(__dirname, '.tmp-fablescript-window-package-'));
   try {
@@ -29,7 +36,7 @@ async function main() {
       ok: true,
       status: 200,
       async json() { return registry; },
-      async arrayBuffer() { return archive; },
+      async arrayBuffer() { return windowsArchive; },
     });
     const installed = await installPackage('window', {
       projectDir,
@@ -44,6 +51,29 @@ async function main() {
     assert.match(result.stdout, /2\.6\.1/);
   } finally {
     fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+
+  const macProjectDir = fs.mkdtempSync(path.join(__dirname, '.tmp-fablescript-window-mac-package-'));
+  try {
+    fs.writeFileSync(path.join(macProjectDir, 'fable.json'), '{"name":"window-mac-package-test"}\n', 'utf8');
+    const fetchImpl = async () => ({
+      ok: true,
+      status: 200,
+      async json() { return registry; },
+      async arrayBuffer() { return macArchive; },
+    });
+    const installed = await installPackage('window', {
+      projectDir: macProjectDir,
+      registryUrl: 'https://example.test/index.json',
+      fetchImpl,
+      platform: 'darwin',
+      arch: 'arm64',
+    });
+    const python = path.join(installed.modulePath, 'python-macos-arm64', 'bin', 'python3.13');
+    assert.deepEqual([...fs.readFileSync(python).subarray(0, 4)], [0xcf, 0xfa, 0xed, 0xfe]);
+    assert.ok(fs.existsSync(path.join(installed.modulePath, 'python-macos-arm64', 'lib', 'python3.13', 'site-packages', 'pygame', '__init__.py')));
+  } finally {
+    fs.rmSync(macProjectDir, { recursive: true, force: true });
   }
   console.log('window package artifact tests passed');
 }

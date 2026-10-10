@@ -24,10 +24,25 @@ FableScript — экспериментальный язык для обучен�
 
 ## Запуск из командной строки
 
-Требуется Node.js 18 или новее.
+В Windows и macOS отдельный Node.js не нужен: установщик CLI использует среду выполнения из VS Code.
+
+Windows:
 
 ```powershell
-node .\runtime\cli.js run .\examples\hello.fable
+pwsh -NoProfile -File .\tools\install-cli.ps1
+```
+
+macOS:
+
+```bash
+sh ./tools/install-cli.sh
+```
+
+После открытия нового терминала:
+
+```text
+fable run examples/hello.fable
+fable install greetings
 ```
 
 ## Запуск расширения
@@ -45,7 +60,7 @@ node .\runtime\cli.js run .\examples\hello.fable
 pwsh -NoProfile -File .\tools\package-extension.ps1
 ```
 
-После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.42.vsix`.
+После сборки выберите в VS Code `Extensions: Install from VSIX...` и укажите файл `build/fablescript-0.0.43.vsix`.
 
 Запустить текущий файл также можно клавишей `F6`, через кнопку `Run FableScript` в строке состояния или по ссылке запуска над первой строкой кода.
 
@@ -149,13 +164,19 @@ if valid {
 }
 ```
 
-Глобальную команду можно установить один раз:
+Глобальную команду в Windows можно установить один раз:
 
 ```powershell
 pwsh -NoProfile -File .\tools\install-cli.ps1
 ```
 
-После открытия нового PowerShell пакет устанавливается из любой папки:
+На macOS выполните из папки FableScript:
+
+```bash
+sh ./tools/install-cli.sh
+```
+
+После открытия нового PowerShell или Terminal пакет устанавливается из любой папки:
 
 ```powershell
 fable install greetings
@@ -169,7 +190,7 @@ fable install greetings
 
 ## Графические окна
 
-Пакет `window` создаёт настоящее отдельное окно через собственные Python и Pygame. Они ставятся вместе с пакетом, поэтому пользователю не нужно отдельно устанавливать Python или Pygame. Сначала установите графику:
+Пакет `window` создаёт настоящее отдельное окно через собственные Python и Pygame на Windows x64 и Mac с Apple Silicon. Они ставятся вместе с пакетом, поэтому пользователю не нужно отдельно устанавливать Python или Pygame. Сначала установите графику:
 
 ```powershell
 fable install window
@@ -278,11 +299,12 @@ if random.chance(0.25) {
 
 В циклах доступны `break` для выхода и `continue` для перехода к следующей итерации. Готовая мини-игра с движением, случайными препятствиями, счётом, перезапуском и правильным закрытием окна находится в `examples/dodge-game.fable`. Перед запуском установите `window`, затем откройте пример и нажмите `F6`.
 
-Пакет `window` пока выпускается для Windows x64. Базовый язык и VSIX не содержат тяжёлую графическую среду. Для пересборки пакета разработчику нужен PowerShell 7 и доступ к интернету:
+Пакет `window` выпускается для Windows x64 и macOS 11+ на Apple Silicon. Базовый язык и VSIX не содержат тяжёлую графическую среду. Для пересборки пакетов разработчику нужен PowerShell 7 и доступ к интернету:
 
 ```powershell
 pwsh -NoProfile -File .\tools\build-embedded-python.ps1
 pwsh -NoProfile -File .\tools\package-window-runtime.ps1
+pwsh -NoProfile -File .\tools\package-window-macos-arm64.ps1
 ```
 
 Скрипт загружает закреплённые версии Python и Pygame с официальных сайтов и проверяет их SHA-256 перед упаковкой.

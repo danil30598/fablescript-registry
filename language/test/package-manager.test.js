@@ -129,6 +129,27 @@ async function main() {
     const loadedWindow = createModuleLoader(mainPath)('window', mainPath);
     assert.equal(loadedWindow.nativeExports.isOpen(), false);
 
+    const macProjectDir = fs.mkdtempSync(path.join(__dirname, '.tmp-fablescript-mac-package-'));
+    try {
+      fs.writeFileSync(path.join(macProjectDir, 'fable.json'), '{"name":"mac-package-test"}\n', 'utf8');
+      registry.packages.window.versions['1.0.0'].platforms['darwin-arm64'] = {
+        url: './window.zip',
+        sha256: windowSha256,
+        entry: { host: 'window-host.py', python: 'python-win-x64/pythonw.exe' },
+      };
+      const installedMacWindow = await installPackage('window', {
+        projectDir: macProjectDir,
+        registryUrl: 'https://example.test/index.json',
+        fetchImpl,
+        platform: 'darwin',
+        arch: 'arm64',
+      });
+      assert.equal(installedMacWindow.kind, 'native');
+      assert.equal(JSON.parse(fs.readFileSync(path.join(installedMacWindow.modulePath, 'fable-native.json'), 'utf8')).platform, 'darwin-arm64');
+    } finally {
+      fs.rmSync(macProjectDir, { recursive: true, force: true });
+    }
+
     await assert.rejects(
       installPackage('greetings@2.0.0', { projectDir, registryUrl: 'https://example.test/index.json', fetchImpl }),
       /Версия «2.0.0»/,

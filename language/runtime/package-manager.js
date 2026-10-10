@@ -155,6 +155,7 @@ async function installPackage(specification, options = {}) {
       const hostPath = safeArchivePath(temporaryPath, platformRelease.entry.host);
       const pythonPath = safeArchivePath(temporaryPath, platformRelease.entry.python);
       if (!fs.existsSync(hostPath) || !fs.existsSync(pythonPath)) throw new Error(`Архив пакета «${name}» не содержит графический движок.`);
+      if ((options.platform || process.platform) !== 'win32') fs.chmodSync(pythonPath, 0o755);
       writeJsonAtomic(path.join(temporaryPath, 'fable-native.json'), {
         name,
         version,

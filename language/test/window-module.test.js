@@ -103,4 +103,16 @@ fallback.create(320, 200, 'Fallback');
 fallback.show();
 assert.match(fallbackHtml, /<canvas id="screen" width="320" height="200">/);
 
+let macNativePath = null;
+const macGraphics = createWindowModule({
+  temporaryDirectory: '/tmp',
+  platform: 'darwin',
+  pythonExecutable: '/bundle/python/bin/python3.13',
+  writeFile() {},
+  openNative(filePath) { macNativePath = filePath; return { kill() {} }; },
+});
+macGraphics.create(320, 200, 'Apple Silicon');
+macGraphics.show();
+assert.match(macNativePath, /fablescript-window-[a-f0-9-]+\.json$/);
+
 console.log('window module tests passed');
