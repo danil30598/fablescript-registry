@@ -554,4 +554,36 @@ const catchScopeErrors = validate('try {\n  input()\n} catch problem {\n  print(
 assert.equal(catchScopeErrors.length, 1);
 assert.match(catchScopeErrors[0].message, /не объявлена/);
 
+const collectionMethodsOutput = [];
+run(`
+  string title = "Fable Script"
+  print(title.len)
+  print(title.upper())
+  print(title.lower())
+  print(title.contains("Script"))
+  print(title.replace(" ", ""))
+  print(title.split(" "))
+
+  var values = [1, "two", true]
+  values.insert(1, 1.5)
+  print(values.contains("two"))
+  print(values.remove(true))
+  print(values)
+  values.clear()
+  print(values.len)
+
+  var player = {name: "Alex", score: 10}
+  print(player.keys())
+  print(player.values())
+  print(player.contains("score"))
+`, (value) => collectionMethodsOutput.push(value));
+assert.deepEqual(collectionMethodsOutput, [
+  '12', 'FABLE SCRIPT', 'fable script', 'true', 'FableScript', '["Fable","Script"]',
+  'true', 'true', '[1,1.5,"two"]', '0', '["name","score"]', '["Alex",10]', 'true',
+]);
+
+assert.equal(validate('var values = [1]\nvalues.insert("bad", 2)').length, 1);
+assert.equal(validate('var player = {name: "Alex"}\nplayer.contains(1)').length, 1);
+assert.throws(() => run('var values = [1]\nvalues.insert(3, 2)'), /вне списка/);
+
 console.log('runtime tests passed');

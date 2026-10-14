@@ -7,6 +7,7 @@ const { FILE_MEMBERS, createFileModule } = require('./native-modules/file');
 const { JSON_MEMBERS, createJsonModule } = require('./native-modules/json');
 const { MATH_MEMBERS, createMathModule } = require('./native-modules/math');
 const { RANDOM_MEMBERS, createRandomModule } = require('./native-modules/random');
+const { TIME_MEMBERS, createTimeModule } = require('./native-modules/time');
 const { WINDOW_MEMBERS, createWindowModule } = require('./native-modules/window');
 
 const BUILTIN_MODULES = [
@@ -14,6 +15,7 @@ const BUILTIN_MODULES = [
   { name: 'json', detail: 'Чтение и создание данных JSON', members: JSON_MEMBERS },
   { name: 'math', detail: 'Математические функции и константы', members: MATH_MEMBERS },
   { name: 'random', detail: 'Случайные числа и выбор элементов', members: RANDOM_MEMBERS },
+  { name: 'time', detail: 'Время, паузы и измерение интервалов', members: TIME_MEMBERS },
   { name: 'window', detail: 'Графика FableScript — установите: fable install window', members: WINDOW_MEMBERS },
 ];
 
@@ -79,6 +81,9 @@ function createModuleLoader(entryFilePath) {
     }
     if (name === 'random') {
       return { filePath: 'native:random', nativeExports: createRandomModule(), nativeMembers: RANDOM_MEMBERS };
+    }
+    if (name === 'time') {
+      return { filePath: 'native:time', nativeExports: createTimeModule(), nativeMembers: TIME_MEMBERS };
     }
     if (name === 'window') {
       const installed = findNativePackage(name, projectDir);

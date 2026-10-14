@@ -14,6 +14,11 @@ const BUILTIN_RETURN_TYPES = {
     choice: 'any',
     chance: 'bool',
   },
+  time: {
+    sleep: 'any',
+    now: 'float',
+    delta: 'float',
+  },
   math: {
     abs: 'float', min: 'float', max: 'float', round: 'int', floor: 'int', ceil: 'int',
     sqrt: 'float', pow: 'float', sin: 'float', cos: 'float', tan: 'float',

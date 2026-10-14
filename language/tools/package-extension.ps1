@@ -4,8 +4,8 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $stagingRoot = Join-Path $projectRoot '.vsix-staging'
 $extensionRoot = Join-Path $stagingRoot 'extension'
 $buildRoot = Join-Path $projectRoot 'build'
-$zipPath = Join-Path $buildRoot 'fablescript-0.0.43.zip'
-$vsixPath = Join-Path $buildRoot 'fablescript-0.0.43.vsix'
+$zipPath = Join-Path $buildRoot 'fablescript-0.0.44.zip'
+$vsixPath = Join-Path $buildRoot 'fablescript-0.0.44.vsix'
 if (-not $stagingRoot.StartsWith($projectRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
     (Split-Path $stagingRoot -Leaf) -ne '.vsix-staging') {
     throw 'Unsafe staging path.'
@@ -22,12 +22,14 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\extension.vsixmanifest
 Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\package.json') -Destination $extensionRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\extension.js') -Destination $extensionRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\signature-help.js') -Destination $extensionRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\language-service.js') -Destination $extensionRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\language-configuration.json') -Destination $extensionRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'vscode-extension\syntaxes') -Destination $extensionRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $projectRoot 'runtime') -Destination $extensionRoot -Recurse
 Remove-Item -LiteralPath (Join-Path $extensionRoot 'runtime\vendor') -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath (Join-Path $extensionRoot 'runtime\native-modules\window-host.py') -Force -ErrorAction SilentlyContinue
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $extensionRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot 'LANGUAGE.md') -Destination $extensionRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'RANSM.md') -Destination $extensionRoot
 
 Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue

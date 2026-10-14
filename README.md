@@ -7,11 +7,13 @@
 - [`language/`](./language/) — интерпретатор, CLI, расширение VS Code, примеры и тесты языка.
 - [`frameworks/`](./frameworks/) — публичный реестр, пакеты и список экосистемы FableScript.
 
+Полная документация основного языка: [`language/LANGUAGE.md`](./language/LANGUAGE.md).
+
 ## Расширение VS Code
 
-Готовый файл: [`language/build/fablescript-0.0.43.vsix`](./language/build/fablescript-0.0.43.vsix).
+Готовый файл: [`language/build/fablescript-0.0.44.vsix`](./language/build/fablescript-0.0.44.vsix).
 
-Расширение добавляет подсветку, диагностику, интерактивный ввод через `input()`, `try/catch`, запуск по `F6`, переносимую сборку, автодополнение и подсказки параметров функций. Язык поддерживает `%`, составные присваивания, `else if`, `range()`, `null`, защищённые файлы RANS#M1 и запуск других файлов через `execute()`; встроены преобразования типов и модули `random`, `file`, `math`, `json`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows x64 и macOS на Apple Silicon. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
+Расширение добавляет подсветку, диагностику, hover с типами, переход к объявлению по F12, переименование, запуск по `F6`, переносимую сборку, автодополнение методов и подсказки параметров. Язык поддерживает `%`, составные присваивания, `else if`, `range()`, `null`, методы строк и коллекций, защищённые файлы RANS#M1 и запуск других файлов через `execute()`; встроены преобразования типов и модули `random`, `file`, `math`, `json`, `time`. Отдельный пакет `window` поддерживает фигуры, изображения, звук, столкновения, клавиатуру, мышь и игровой цикл в нативном окне Windows x64 и macOS на Apple Silicon. Готовый пример игры находится в [`language/examples/dodge-game.fable`](./language/examples/dodge-game.fable).
 
 ## CLI на Mac с Apple Silicon
 

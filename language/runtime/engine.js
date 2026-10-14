@@ -65,7 +65,7 @@ function tokenize(text, line, baseColumn) {
         if (text[i] === quote) { i += 1; closed = true; break; }
         if (text[i] === '\\') {
           const escape = text[i + 1];
-          const escapes = { n: '\n', t: '\t', '\\': '\\', '"': '"', "'": "'" };
+          const escapes = { n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"', "'": "'" };
           if (!(escape in escapes)) throw new FableError(`Неизвестная escape-последовательность \\${escape}.`, line, baseColumn + i);
           value += escapes[escape];
           i += 2;
@@ -132,7 +132,7 @@ function parseExpression(text, line, column) {
         if (key.type !== 'identifier' && !(key.type === 'literal' && key.valueType === 'string')) throw new FableError('Ключ таблицы должен быть именем или строкой.', line, key.column);
         position += 1;
         if (keys.has(String(key.value))) throw new FableError(`Ключ «${key.value}» указан дважды.`, line, key.column);
-        if (['len', 'add', 'remove'].includes(String(key.value))) throw new FableError(`Ключ «${key.value}» зарезервирован.`, line, key.column);
+        if (['len', 'add', 'remove', 'insert', 'clear', 'contains', 'keys', 'values', 'upper', 'lower', 'replace', 'split'].includes(String(key.value))) throw new FableError(`Ключ «${key.value}» зарезервирован.`, line, key.column);
         keys.add(String(key.value));
         if (current()?.type !== ':') throw new FableError('После ключа таблицы ожидался символ :.', line, current()?.column ?? column + text.length);
         position += 1;
@@ -669,10 +669,20 @@ function typeOf(expression, symbols, context) {
   }
   if (expression.kind === 'methodCall') {
     const object = typeOf(expression.object, symbols, context);
-    if (object === 'any' && ['add', 'remove'].includes(expression.name)) {
-      if (expression.args.length !== 1) throw new FableError(`Метод ${expression.name} ожидает один аргумент.`, expression.line, expression.column);
-      typeOf(expression.args[0], symbols, context);
-      return expression.name === 'remove' ? 'bool' : 'void';
+    const methodArguments = (count) => {
+      if (expression.args.length !== count) throw new FableError(`Метод ${expression.name} ожидает ${count === 1 ? 'один аргумент' : `${count} аргумента`}.`, expression.line, expression.column);
+      return expression.args.map((argument) => typeOf(argument, symbols, context));
+    };
+    if (object === 'any') {
+      const returnTypes = {
+        add: 'void', remove: 'bool', insert: 'void', clear: 'void', contains: 'bool',
+        keys: { kind: 'list', element: 'string' }, values: { kind: 'list', element: 'any' },
+        upper: 'string', lower: 'string', replace: 'string', split: { kind: 'list', element: 'string' },
+      };
+      const counts = { add: 1, remove: 1, insert: 2, clear: 0, contains: 1, keys: 0, values: 0, upper: 0, lower: 0, replace: 2, split: 1 };
+      if (!(expression.name in returnTypes)) throw new FableError(`У типа any нет метода «${expression.name}».`, expression.line, expression.column);
+      methodArguments(counts[expression.name]);
+      return returnTypes[expression.name];
     }
     if (typeof object !== 'string' && object.kind === 'module') {
       for (const argument of expression.args) typeOf(argument, symbols, context);
@@ -690,12 +700,32 @@ function typeOf(expression, symbols, context) {
       if (!method.returnType) inferFunction(method, context);
       return method.returnType;
     }
-    if (typeof object === 'string' || object.kind !== 'list' || !['add', 'remove'].includes(expression.name)) throw new FableError(`У типа ${typeName(object)} нет метода «${expression.name}».`, expression.line, expression.column);
-    if (expression.args.length !== 1) throw new FableError(`Метод ${expression.name} ожидает один аргумент.`, expression.line, expression.column);
-    const argument = typeOf(expression.args[0], symbols, context);
-    if (object.element === 'unknown') object.element = argument;
-    else if (!assignable(object.element, argument)) throw new FableError(`Метод ${expression.name} ожидает ${typeName(object.element)}, получен ${typeName(argument)}.`, expression.line, expression.column);
-    return expression.name === 'remove' ? 'bool' : 'void';
+    if (object === 'string') {
+      const counts = { upper: 0, lower: 0, contains: 1, replace: 2, split: 1 };
+      if (!(expression.name in counts)) throw new FableError(`У типа string нет метода «${expression.name}».`, expression.line, expression.column);
+      const argumentsTypes = methodArguments(counts[expression.name]);
+      if (argumentsTypes.some((argument) => argument !== 'string' && argument !== 'any')) throw new FableError(`Метод ${expression.name} ожидает аргументы типа string.`, expression.line, expression.column);
+      return expression.name === 'contains' ? 'bool' : expression.name === 'split' ? { kind: 'list', element: 'string' } : 'string';
+    }
+    if (object.kind === 'table') {
+      const counts = { keys: 0, values: 0, contains: 1 };
+      if (!(expression.name in counts)) throw new FableError(`У типа table нет метода «${expression.name}».`, expression.line, expression.column);
+      const argumentsTypes = methodArguments(counts[expression.name]);
+      if (expression.name === 'contains' && argumentsTypes[0] !== 'string' && argumentsTypes[0] !== 'any') throw new FableError('Метод contains таблицы ожидает ключ типа string.', expression.line, expression.column);
+      if (expression.name === 'keys') return { kind: 'list', element: 'string' };
+      if (expression.name === 'values') return { kind: 'list', element: 'any' };
+      return 'bool';
+    }
+    if (object.kind !== 'list' || !['add', 'remove', 'insert', 'clear', 'contains'].includes(expression.name)) throw new FableError(`У типа ${typeName(object)} нет метода «${expression.name}».`, expression.line, expression.column);
+    const counts = { add: 1, remove: 1, insert: 2, clear: 0, contains: 1 };
+    const argumentsTypes = methodArguments(counts[expression.name]);
+    if (expression.name === 'insert' && argumentsTypes[0] !== 'int' && argumentsTypes[0] !== 'any') throw new FableError('Первый аргумент insert должен иметь тип int.', expression.line, expression.column);
+    if (expression.name !== 'clear') {
+      const argument = argumentsTypes[expression.name === 'insert' ? 1 : 0];
+      if (object.element === 'unknown' && ['add', 'insert'].includes(expression.name)) object.element = argument;
+      else if (object.element !== 'unknown' && !assignable(object.element, argument)) throw new FableError(`Метод ${expression.name} ожидает ${typeName(object.element)}, получен ${typeName(argument)}.`, expression.line, expression.column);
+    }
+    return ['remove', 'contains'].includes(expression.name) ? 'bool' : 'void';
   }
   if (expression.kind === 'call') {
     if (expression.name === 'input') {
@@ -1009,14 +1039,40 @@ function evaluate(expression, values, runtime) {
       return invokeFunctionNode(method, argumentValues, runtime, collection, collection.__functions, collection.__classes);
     }
     const value = argumentValues[0];
-    if (expression.name === 'add') {
-      collection.push(value);
-      return undefined;
+    if (typeof collection === 'string') {
+      if (expression.name === 'upper') return collection.toUpperCase();
+      if (expression.name === 'lower') return collection.toLowerCase();
+      if (expression.name === 'contains') return collection.includes(value);
+      if (expression.name === 'replace') return collection.split(argumentValues[0]).join(argumentValues[1]);
+      if (expression.name === 'split') return collection.split(value);
+    } else if (Array.isArray(collection)) {
+      if (expression.name === 'add') {
+        collection.push(value);
+        return undefined;
+      }
+      if (expression.name === 'insert') {
+        const [index, insertedValue] = argumentValues;
+        if (!Number.isInteger(index) || index < 0 || index > collection.length) throw new FableError(`Индекс ${index} находится вне списка.`, expression.line, expression.column);
+        collection.splice(index, 0, insertedValue);
+        return undefined;
+      }
+      if (expression.name === 'clear') {
+        collection.length = 0;
+        return undefined;
+      }
+      if (expression.name === 'contains') return collection.includes(value);
+      if (expression.name === 'remove') {
+        const index = collection.indexOf(value);
+        if (index < 0) return false;
+        collection.splice(index, 1);
+        return true;
+      }
+    } else if (collection !== null && typeof collection === 'object') {
+      if (expression.name === 'keys') return Object.keys(collection);
+      if (expression.name === 'values') return Object.values(collection);
+      if (expression.name === 'contains') return Object.prototype.hasOwnProperty.call(collection, value);
     }
-    const index = collection.indexOf(value);
-    if (index < 0) return false;
-    collection.splice(index, 1);
-    return true;
+    throw new FableError(`У значения нет метода «${expression.name}».`, expression.line, expression.column);
   }
   if (expression.kind === 'call') {
     const argumentValues = expression.args.map((argument) => evaluate(argument, values, runtime));

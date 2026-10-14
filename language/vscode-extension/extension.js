@@ -20,6 +20,7 @@ const {
   parameterName,
   signatureModels,
 } = require('./signature-help.js');
+const { KEYWORDS, hoverText, identifierOccurrences, receiverType, symbolAt } = require('./language-service.js');
 
 const GLOBAL_SIGNATURES = {
   print: signatureModels('print', { parameters: ['value'], detail: 'Вывести значение в консоль' }),
@@ -39,6 +40,48 @@ const GLOBAL_SIGNATURES = {
     ...signatureModels('execute', { parameters: ['file', 'function', 'arguments'], detail: 'Запустить функцию с аргументами из файла FableScript' }),
   ],
 };
+
+const COLLECTION_METHODS = {
+  string: [
+    { name: 'len', kind: 'property', detail: 'Количество символов' },
+    { name: 'upper', body: 'upper()', detail: 'Строка в верхнем регистре' },
+    { name: 'lower', body: 'lower()', detail: 'Строка в нижнем регистре' },
+    { name: 'contains', body: 'contains(${1:text})', detail: 'Проверить наличие текста' },
+    { name: 'replace', body: 'replace(${1:old}, ${2:new})', detail: 'Заменить все совпадения' },
+    { name: 'split', body: 'split(${1:separator})', detail: 'Разделить строку на список' },
+  ],
+  list: [
+    { name: 'len', kind: 'property', detail: 'Количество элементов' },
+    { name: 'add', body: 'add(${1:value})', detail: 'Добавить значение в конец' },
+    { name: 'remove', body: 'remove(${1:value})', detail: 'Удалить первое совпадение' },
+    { name: 'insert', body: 'insert(${1:index}, ${2:value})', detail: 'Вставить значение по индексу' },
+    { name: 'clear', body: 'clear()', detail: 'Очистить список' },
+    { name: 'contains', body: 'contains(${1:value})', detail: 'Проверить наличие значения' },
+  ],
+  table: [
+    { name: 'len', kind: 'property', detail: 'Количество ключей' },
+    { name: 'keys', body: 'keys()', detail: 'Получить список ключей' },
+    { name: 'values', body: 'values()', detail: 'Получить список значений' },
+    { name: 'contains', body: 'contains(${1:key})', detail: 'Проверить наличие ключа' },
+  ],
+};
+
+function collectionSignatures(receiver, name) {
+  const models = {
+    upper: { parameters: [], detail: 'Строка в верхнем регистре' },
+    lower: { parameters: [], detail: 'Строка в нижнем регистре' },
+    contains: { parameters: ['value'], detail: 'Проверить наличие значения или ключа' },
+    replace: { parameters: ['old', 'new'], detail: 'Заменить все совпадения в строке' },
+    split: { parameters: ['separator'], detail: 'Разделить строку на список' },
+    add: { parameters: ['value'], detail: 'Добавить значение в список' },
+    remove: { parameters: ['value'], detail: 'Удалить первое совпадающее значение' },
+    insert: { parameters: ['index', 'value'], detail: 'Вставить значение по индексу' },
+    clear: { parameters: [], detail: 'Очистить список' },
+    keys: { parameters: [], detail: 'Получить ключи таблицы' },
+    values: { parameters: [], detail: 'Получить значения таблицы' },
+  };
+  return models[name] ? signatureModels(`${receiver}.${name}`, models[name]) : [];
+}
 
 function discoverModules(filePath) {
   const projectDir = findProjectDir(filePath);
@@ -99,8 +142,7 @@ function signaturesForCall(document, call) {
 
   const sourceMember = findSourceCallable(source, call.name);
   if (sourceMember) return signatureModels(call.receiver ? `${call.receiver}.${call.name}` : call.name, sourceMember);
-  if (call.receiver && call.name === 'add') return signatureModels(`${call.receiver}.add`, { parameters: ['value'], detail: 'Добавить значение в список' });
-  if (call.receiver && call.name === 'remove') return signatureModels(`${call.receiver}.remove`, { parameters: ['value'], detail: 'Удалить первое совпадающее значение' });
+  if (call.receiver) return collectionSignatures(call.receiver, call.name);
   return [];
 }
 
@@ -282,11 +324,6 @@ function activate(context) {
           return item;
         };
 
-        const memberSuggestions = [
-          new vscode.CompletionItem('len', vscode.CompletionItemKind.Property),
-          snippet('add', 'add(${1:value})', 'Добавить значение в список'),
-          snippet('remove', 'remove(${1:value})', 'Удалить первое совпадающее значение'),
-        ];
         const linePrefix = document.lineAt(position).text.slice(0, position.character);
         const modules = document.isUntitled ? [] : discoverModules(document.uri.fsPath);
         const importContext = linePrefix.match(/^\s*import\s+([A-Za-z_]*)$/);
@@ -305,7 +342,19 @@ function activate(context) {
           const moduleName = memberContext[1];
           const imported = new RegExp(`^\\s*import\\s+${moduleName}\\s*$`, 'm').test(document.getText());
           const module = imported ? modules.find((candidate) => candidate.name === moduleName) : null;
-          if (!module) return memberSuggestions;
+          if (!module) {
+            const type = receiverType(document.getText(), moduleName, document.offsetAt(position));
+            const methodModels = COLLECTION_METHODS[type] || Object.values(COLLECTION_METHODS).flat();
+            const unique = new Map(methodModels.map((model) => [model.name, model]));
+            return [...unique.values()].map((model) => {
+              if (model.kind === 'property') {
+                const item = new vscode.CompletionItem(model.name, vscode.CompletionItemKind.Property);
+                item.detail = model.detail;
+                return item;
+              }
+              return snippet(model.name, model.body, model.detail);
+            });
+          }
           const members = module.members || exportedMembers(module.path);
           return members.map((member) => {
             const callable = member.kind === 'function' || member.kind === 'class';
@@ -421,6 +470,85 @@ function activate(context) {
       },
     },
     '(', ',',
+  ));
+
+  context.subscriptions.push(vscode.languages.registerHoverProvider(
+    { language: 'fablescript', scheme: 'file' },
+    {
+      provideHover(document, position) {
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
+        if (!range) return null;
+        const name = document.getText(range);
+        const linePrefix = document.lineAt(position).text.slice(0, range.start.character);
+        const receiver = linePrefix.match(/([A-Za-z_][A-Za-z0-9_]*)\.\s*$/)?.[1];
+        if (receiver && !document.isUntitled) {
+          const module = discoverModules(document.uri.fsPath).find((candidate) => candidate.name === receiver);
+          const member = (module?.members || (module?.path ? exportedMembers(module.path) : [])).find((candidate) => candidate.name === name);
+          if (member) {
+            const parameters = callableParameters(member).map(parameterName).join(', ');
+            const signature = member.kind === 'function' ? `func ${receiver}.${name}(${parameters})` : `${member.kind} ${receiver}.${name}`;
+            const markdown = new vscode.MarkdownString();
+            markdown.appendCodeblock(signature, 'fable');
+            if (member.detail) markdown.appendMarkdown(`\n${member.detail}`);
+            return new vscode.Hover(markdown, range);
+          }
+        }
+        const information = hoverText(document.getText(), name, document.offsetAt(position));
+        if (!information) return null;
+        const markdown = new vscode.MarkdownString();
+        markdown.appendCodeblock(information, 'fable');
+        return new vscode.Hover(markdown, range);
+      },
+    },
+  ));
+
+  context.subscriptions.push(vscode.languages.registerDefinitionProvider(
+    { language: 'fablescript', scheme: 'file' },
+    {
+      provideDefinition(document, position) {
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
+        if (!range) return null;
+        const name = document.getText(range);
+        const linePrefix = document.lineAt(position).text.slice(0, range.start.character);
+        const receiver = linePrefix.match(/([A-Za-z_][A-Za-z0-9_]*)\.\s*$/)?.[1];
+        if (receiver && !document.isUntitled) {
+          const module = discoverModules(document.uri.fsPath).find((candidate) => candidate.name === receiver && candidate.path);
+          if (module) {
+            const moduleSource = fs.readFileSync(module.path, 'utf8');
+            const declaration = new RegExp(`^\\s*(?:func|class|var|int|float|string|bool|any)\\s+${name}\\b`, 'm').exec(moduleSource);
+            if (declaration) return new vscode.Location(vscode.Uri.file(module.path), new vscode.Position(moduleSource.slice(0, declaration.index).split(/\r?\n/).length - 1, 0));
+          }
+        }
+        const symbol = symbolAt(document.getText(), name, document.offsetAt(position));
+        if (!symbol) return null;
+        return new vscode.Location(document.uri, document.positionAt(symbol.offset));
+      },
+    },
+  ));
+
+  context.subscriptions.push(vscode.languages.registerRenameProvider(
+    { language: 'fablescript', scheme: 'file' },
+    {
+      prepareRename(document, position) {
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
+        if (!range) return null;
+        const name = document.getText(range);
+        if (!symbolAt(document.getText(), name, document.offsetAt(position))) return null;
+        return { range, placeholder: name };
+      },
+      provideRenameEdits(document, position, newName) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newName) || KEYWORDS.has(newName)) throw new Error('Новое имя должно быть допустимым идентификатором FableScript.');
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
+        if (!range) return null;
+        const oldName = document.getText(range);
+        if (!symbolAt(document.getText(), oldName, document.offsetAt(position))) return null;
+        const edit = new vscode.WorkspaceEdit();
+        for (const occurrence of identifierOccurrences(document.getText(), oldName)) {
+          edit.replace(document.uri, new vscode.Range(document.positionAt(occurrence.offset), document.positionAt(occurrence.offset + occurrence.length)), newName);
+        }
+        return edit;
+      },
+    },
   ));
 }
 
